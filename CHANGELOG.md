@@ -1,3 +1,24 @@
+# v1.3.0 - 2024-01-29
+
+- Added new `patchy branch-fetch` subcommand, allows fetching GitHub branches locally. Usage:
+
+```
+Usage:
+
+  patchy branch-fetch [<args>] [<flags>]
+  » Fetch remote branches into a local branch
+
+Examples:
+
+  patchy branch-fetch helix-editor/helix/master
+  » Fetch a single branch
+
+  patchy branch-fetch 'helix-editor/helix/master@6049f20'
+  » Fetch a single branch at a certain commit
+```
+
+- Using a `pr-fetch` with no arguments will bring up the help menu now.
+
 # Patchy v1.2.7
 
 - Improved error message
