@@ -158,6 +158,41 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
 ",
             );
         }
+        Some(cmd_name @ "branch-fetch") => {
+            let description = format_description("Fetch remote branches into a local branch");
+
+            let example_1 = format!(
+                "{}
+            {}",
+                "helix-editor/helix/master".bright_green(),
+                format_description("Fetch a single branch")
+            );
+            let example_2 = format!(
+                "{}
+            {}",
+                "'helix-editor/helix/master@6049f20'".bright_green(),
+                format_description("Fetch a single branch at a certain commit")
+            );
+
+            let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
+
+            println!(
+                "
+{header}
+        
+  Usage:
+
+    {this_command_name} {args} {flags_label}
+    {description}
+
+  Examples:
+
+    {this_command_name} {example_1}
+
+    {this_command_name} {example_2}
+",
+            );
+        }
         Some(cmd_name @ "pr-fetch") => {
             let description = format_description("Fetch pull requests into a local branch");
 
