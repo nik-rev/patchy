@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{env, fmt::Display};
 
 use colored::Colorize;
@@ -33,15 +34,15 @@ pub struct Flag<'a> {
 /// assert_eq!(invalid, None);
 /// ```
 impl Flag<'_> {
-    pub fn is_in_args(&self, args: &CommandArgs) -> bool {
+    pub fn is_in(&self, args: &CommandArgs) -> bool {
         args.contains(self.short) || args.contains(self.long)
     }
 
     pub fn extract_from_arg(&self, arg: &str) -> Option<String> {
         if arg.starts_with(self.short) {
-            arg.get(self.short.len()..).map(|value| value.into())
+            arg.get(self.short.len()..).map(Into::into)
         } else if arg.starts_with(self.long) {
-            arg.get(self.long.len()..).map(|value| value.into())
+            arg.get(self.long.len()..).map(Into::into)
         } else {
             None
         }
@@ -50,7 +51,7 @@ impl Flag<'_> {
 
 impl Display for Flag<'_> {
     /// Formats a flag into a colored format with a description, printable to the terminal
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}{}{}\n    {}",

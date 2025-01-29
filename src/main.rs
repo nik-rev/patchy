@@ -2,7 +2,7 @@ use colored::Colorize;
 use patchy::commands::help::{HELP_FLAG, VERSION_FLAG};
 use patchy::commands::{gen_patch, help, init, pr_fetch, run};
 use patchy::fail;
-use std::env;
+use std::{env, process};
 
 use patchy::types::CommandArgs;
 
@@ -23,14 +23,14 @@ async fn process_subcommand(subcommand: &str, args: CommandArgs) -> Result<()> {
                     format!(
                         "  Unknown {unknown}: {}",
                         unrecognized,
-                        unknown = if unrecognized.starts_with("-") {
+                        unknown = if unrecognized.starts_with('-') {
                             "flag".bright_red()
                         } else {
                             "command".bright_red()
                         }
                     )
                     .bright_red()
-                )
+                );
             }
 
             help(None)?;
@@ -48,14 +48,14 @@ async fn main() -> Result<()> {
 
     let mut args: CommandArgs = args.collect();
 
-    if subcommand.starts_with("-") {
+    if subcommand.starts_with('-') {
         // We're not using any command, only flags
         args.insert(subcommand.clone());
     }
 
-    if HELP_FLAG.is_in_args(&args) {
+    if HELP_FLAG.is_in(&args) {
         help(Some(&subcommand))
-    } else if VERSION_FLAG.is_in_args(&args) {
+    } else if VERSION_FLAG.is_in(&args) {
         print!("{}", env!("CARGO_PKG_VERSION"));
 
         Ok(())
@@ -64,7 +64,7 @@ async fn main() -> Result<()> {
             Ok(()) => Ok(()),
             Err(msg) => {
                 fail!("{msg}");
-                std::process::exit(1);
+                process::exit(1);
             }
         }
     }

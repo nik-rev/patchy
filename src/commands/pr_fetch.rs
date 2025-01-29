@@ -1,3 +1,5 @@
+use std::process;
+
 use crate::commands::help;
 use crate::fail;
 use crate::flags::{is_valid_flag, Flag};
@@ -16,7 +18,7 @@ use super::run::parse_if_maybe_hash;
 /// Allow users to prefix their PRs with octothorpe, e.g. #12345 instead of 12345.
 /// This is just a QOL addition since some people may use it due to habit
 pub fn ignore_octothorpe(arg: &str) -> String {
-    if arg.starts_with("#") {
+    if arg.starts_with('#') {
         arg.get(1..).unwrap_or_default()
     } else {
         arg
@@ -52,8 +54,7 @@ pub static PR_FETCH_FLAGS: &[&Flag<'static>; 5] = &[
 ];
 
 pub async fn pr_fetch(args: &CommandArgs) -> anyhow::Result<()> {
-    let checkout_flag =
-        args.contains(PR_FETCH_CHECKOUT_FLAG.short) || args.contains(PR_FETCH_CHECKOUT_FLAG.long);
+    let has_checkout_flag = PR_FETCH_CHECKOUT_FLAG.is_in(args);
 
     let mut args = args.iter().peekable();
 
@@ -79,7 +80,7 @@ pub async fn pr_fetch(args: &CommandArgs) -> anyhow::Result<()> {
             if !is_valid_flag(arg, PR_FETCH_FLAGS) {
                 fail!("Invalid flag: {arg}");
                 let _ = help(Some("pr-fetch"));
-                std::process::exit(1);
+                process::exit(1);
             }
 
             // Do not consider flags as arguments
@@ -90,7 +91,7 @@ pub async fn pr_fetch(args: &CommandArgs) -> anyhow::Result<()> {
 
         let (pull_request, hash) = parse_if_maybe_hash(&arg, "@");
 
-        if !pull_request.chars().all(|ch| ch.is_numeric()) {
+        if !pull_request.chars().all(char::is_numeric) {
             fail!(
                 "The following argument couldn't be parsed as a pull request number: {arg}
   Examples of valid pull request numbers (with custom commit hashes supported): 1154, 500, '1001@0b36296f67a80309243ea5c8892c79798c6dcf93'"
@@ -122,7 +123,7 @@ pub async fn pr_fetch(args: &CommandArgs) -> anyhow::Result<()> {
         if remote.starts_with(GITHUB_REMOTE_PREFIX) && remote.ends_with(GITHUB_REMOTE_SUFFIX) {
             let start = GITHUB_REMOTE_PREFIX.len();
             let end = remote.len() - GITHUB_REMOTE_SUFFIX.len();
-            remote_name = remote.get(start..end).map(|remote| remote.into());
+            remote_name = remote.get(start..end).map(Into::into);
         };
     }
 
@@ -171,17 +172,17 @@ pub async fn pr_fetch(args: &CommandArgs) -> anyhow::Result<()> {
                 let _ = GIT(&["remote", "remove", &info.remote.local_remote_alias]);
 
                 // If user uses --checkout flag, we're going to checkout the first PR only
-                if i == 0 && checkout_flag {
+                if i == 0 && has_checkout_flag {
                     if let Err(cant_checkout) = GIT(&["checkout", &info.branch.local_branch_name]) {
                         fail!(
                             "Could not check out branch {}:\n{cant_checkout}",
                             info.branch.local_branch_name
-                        )
+                        );
                     } else {
                         success!(
                             "Automatically checked out the first branch: {}",
                             info.branch.local_branch_name
-                        )
+                        );
                     }
                 }
             }

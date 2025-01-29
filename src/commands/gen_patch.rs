@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, process};
 
 use crate::CONFIG_ROOT;
 use crate::{
@@ -45,7 +45,7 @@ pub fn gen_patch(args: &CommandArgs) -> anyhow::Result<()> {
             if !is_valid_flag(arg, GEN_PATCH_FLAGS) {
                 fail!("Invalid flag: {arg}");
                 let _ = help(Some("gen-patch"));
-                std::process::exit(1);
+                process::exit(1);
             }
 
             // Do not consider flags as arguments
@@ -83,7 +83,7 @@ pub fn gen_patch(args: &CommandArgs) -> anyhow::Result<()> {
             "Config directory {} does not exist, creating it...",
             config_path.to_string_lossy()
         );
-        fs::create_dir(&config_path)?;
+        fs::create_dir_all(&config_path)?;
     }
 
     for (patch_commit_hash, maybe_custom_patch_name) in
@@ -92,10 +92,11 @@ pub fn gen_patch(args: &CommandArgs) -> anyhow::Result<()> {
         // 1. if the user provides a custom filename for the patch file, use that
         // 2. otherwise use the commit message
         // 3. if all fails use the commit hash
-        let patch_filename = maybe_custom_patch_name.unwrap_or({
-            GIT(&["log", "--format=%B", "--max-count=1", patch_commit_hash])
-                .map(|commit_msg| normalize_commit_msg(&commit_msg))
-                .unwrap_or(patch_commit_hash.to_string())
+        let patch_filename = maybe_custom_patch_name.unwrap_or_else(|| {
+            GIT(&["log", "--format=%B", "--max-count=1", patch_commit_hash]).map_or_else(
+                |_| patch_commit_hash.to_owned(),
+                |commit_msg| normalize_commit_msg(&commit_msg),
+            )
         });
 
         let patch_filename = format!("{patch_filename}.patch");
@@ -125,7 +126,7 @@ pub fn gen_patch(args: &CommandArgs) -> anyhow::Result<()> {
         success!(
             "Created patch file at {}",
             patch_file_path.to_string_lossy()
-        )
+        );
     }
 
     Ok(())

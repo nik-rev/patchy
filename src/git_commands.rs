@@ -1,8 +1,9 @@
 use crate::{fail, types::Repo, utils::display_link};
 use colored::Colorize;
 use std::{
+    env, io,
     path::{Path, PathBuf},
-    process::Output,
+    process::{self, Output},
 };
 
 use anyhow::{anyhow, Result};
@@ -15,6 +16,7 @@ use crate::{
     utils::{make_request, normalize_commit_msg, with_uuid},
 };
 
+/// A valid branch name consists of alphanumeric characters, but also '.', '-', '/' or '_'
 pub fn is_valid_branch_name(branch_name: &str) -> bool {
     branch_name
         .chars()
@@ -24,14 +26,14 @@ pub fn is_valid_branch_name(branch_name: &str) -> bool {
 pub static GITHUB_REMOTE_PREFIX: &str = "git@github.com:";
 pub static GITHUB_REMOTE_SUFFIX: &str = ".git";
 
-pub fn spawn_git(args: &[&str], git_dir: &Path) -> Result<Output, std::io::Error> {
-    std::process::Command::new("git")
+pub fn spawn_git(args: &[&str], git_dir: &Path) -> Result<Output, io::Error> {
+    process::Command::new("git")
         .args(args)
         .current_dir(git_dir)
         .output()
 }
 
-pub fn get_git_output(output: Output, args: &[&str]) -> anyhow::Result<String> {
+pub fn get_git_output(output: &Output, args: &[&str]) -> anyhow::Result<String> {
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout)
             .trim_end()
@@ -47,20 +49,20 @@ pub fn get_git_output(output: Output, args: &[&str]) -> anyhow::Result<String> {
 }
 
 pub fn get_git_root() -> anyhow::Result<PathBuf> {
-    let current_dir = std::env::current_dir()?;
+    let current_dir = env::current_dir()?;
 
     let args = ["rev-parse", "--show-toplevel"];
 
     let root = spawn_git(&args, &current_dir)?;
 
-    get_git_output(root, &args).map(|output| output.into())
+    get_git_output(&root, &args).map(Into::into)
 }
 
 pub static GIT_ROOT: Lazy<PathBuf> = Lazy::new(|| match get_git_root() {
     Ok(root) => root,
     Err(err) => {
         fail!("Failed to determine Git root directory.\n{err}");
-        std::process::exit(1)
+        process::exit(1)
     }
 });
 
@@ -69,7 +71,7 @@ type Git = Lazy<Box<dyn Fn(&[&str]) -> Result<String> + Send + Sync>>;
 pub static GIT: Git = Lazy::new(|| {
     Box::new(move |args: &[&str]| -> Result<String> {
         trace!("$ git {}", args.join(" "));
-        get_git_output(spawn_git(args, &GIT_ROOT)?, args)
+        get_git_output(&spawn_git(args, &GIT_ROOT)?, args)
     })
 });
 
@@ -305,15 +307,18 @@ pub async fn fetch_branch(
 
     let info = BranchAndRemote {
         branch: Branch {
-            upstream_branch_name: branch_name.to_string(),
-            local_branch_name: custom_branch_name.map(|b| b.into()).unwrap_or({
-                let branch_name = &format!("{repo}/{branch_name}");
+            upstream_branch_name: branch_name.to_owned(),
+            local_branch_name: custom_branch_name.map_or_else(
+                || {
+                    let branch_name = &format!("{repo}/{branch_name}");
 
-                match first_available_branch(branch_name) {
-                    AvailableBranch::First => branch_name.to_string(),
-                    AvailableBranch::Other(branch) => branch,
-                }
-            }),
+                    match first_available_branch(branch_name) {
+                        AvailableBranch::First => branch_name.to_string(),
+                        AvailableBranch::Other(branch) => branch,
+                    }
+                },
+                Into::into,
+            ),
         },
         remote: Remote {
             repository_url: response.clone_url.clone(),
@@ -347,14 +352,17 @@ pub async fn fetch_pull_request(
     let info = BranchAndRemote {
         branch: Branch {
             upstream_branch_name: response.head.r#ref.clone(),
-            local_branch_name: custom_branch_name.map(|s| s.into()).unwrap_or({
-                let branch_name = &format!("{pull_request}/{}", &response.head.r#ref);
+            local_branch_name: custom_branch_name.map_or_else(
+                || {
+                    let branch_name = &format!("{pull_request}/{}", &response.head.r#ref);
 
-                match first_available_branch(branch_name) {
-                    AvailableBranch::First => branch_name.to_string(),
-                    AvailableBranch::Other(branch) => branch,
-                }
-            }),
+                    match first_available_branch(branch_name) {
+                        AvailableBranch::First => branch_name.to_string(),
+                        AvailableBranch::Other(branch) => branch,
+                    }
+                },
+                Into::into,
+            ),
         },
         remote: Remote {
             repository_url: response.head.repo.clone_url.clone(),

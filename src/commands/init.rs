@@ -26,7 +26,7 @@ pub fn init(_args: &CommandArgs) -> anyhow::Result<()> {
         anyhow::bail!("Did not overwrite {config_file_path:?}");
     }
 
-    let _ = fs::create_dir(config_path);
+    let _ = fs::create_dir_all(config_path);
 
     let mut file = File::create(&config_file_path)?;
 

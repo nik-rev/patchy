@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, process};
 
 use anyhow::anyhow;
 use colored::Colorize;
@@ -24,7 +24,7 @@ pub static RUN_YES_FLAG: Flag<'static> = Flag {
     description: "Do not prompt when overwriting local-branch specified in the config",
 };
 
-/// Parses user inputs of the form "(<anything>)+ @ <commit-hash>"
+/// Parses user inputs of the form `<head><syntax><commit-hash>`
 ///
 /// Returns the user's input but also the commit hash if it exists
 pub fn parse_if_maybe_hash(input: &str, syntax: &str) -> (String, Option<String>) {
@@ -33,7 +33,7 @@ pub fn parse_if_maybe_hash(input: &str, syntax: &str) -> (String, Option<String>
     let len = parts.len();
 
     if len == 1 {
-        // The string does not contain any " @ ", so the user chose to use the latest commit rather than a specific one
+        // The string does not contain the <syntax>, so the user chose to use the latest commit rather than a specific one
         (input.into(), None)
     } else {
         // They want to use a specific commit
@@ -47,7 +47,7 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
     println!();
 
     let config_path = GIT_ROOT.join(CONFIG_ROOT);
-    let has_yes_flag = RUN_YES_FLAG.is_in_args(args);
+    let has_yes_flag = RUN_YES_FLAG.is_in(args);
 
     let config_file_path = config_path.join(CONFIG_FILE);
 
@@ -64,19 +64,21 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
         {
             if let Err(err) = init(args) {
                 fail!("{err}");
-                std::process::exit(1);
+                process::exit(1);
             };
         } else if has_yes_flag {
             eprintln!(
                 "You can create it with {} {}",
                 "patchy".bright_blue(),
                 "init".bright_yellow()
-            )
+            );
+        } else {
+            // user said "no" in the prompt, so we don't do any initializing
         }
 
         // We don't want to read the default configuration file as config_raw. Since it's empty there's no reason why the user would want to run it.
 
-        std::process::exit(0);
+        process::exit(0);
     };
 
     trace!("Using configuration file {config_file_path:?}");
@@ -135,11 +137,11 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
                 "see the instructions on how to configure patchy.",
                 "https://github.com/nik-rev/patchy?tab=readme-ov-file#config"
             )
-        )
+        );
     } else {
         // TODO: make this concurrent, see https://users.rust-lang.org/t/processing-subprocesses-concurrently/79638/3
         // Git cannot handle multiple threads executing commands in the same repository, so we can't use threads, but we can run processes in the background
-        for pull_request in config.pull_requests.iter() {
+        for pull_request in &config.pull_requests {
             let pull_request = ignore_octothorpe(pull_request);
             let (pull_request, commit_hash) = parse_if_maybe_hash(&pull_request, " @ ");
             // TODO: refactor this to not use such deep nesting
@@ -174,7 +176,7 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
                                     ),
                                     &response.html_url
                                 ),
-                            )
+                            );
                         }
                         Err(err) => {
                             fail!("{err}");
@@ -201,12 +203,12 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
         return Err(anyhow!("Could not create directory {CONFIG_ROOT}\n{err}"));
     };
 
-    for (file_name, _file, contents) in backed_up_files.iter() {
+    for (file_name, _file, contents) in &backed_up_files {
         restore_backup(file_name, contents)
             .map_err(|err| anyhow!("Could not restore backups:\n{err}"))?;
 
         // apply patches if they exist
-        if let Some(ref patches) = config.patches {
+        if let Some(patches) = &config.patches {
             let file_name = file_name
                 .to_str()
                 .and_then(|file_name| file_name.get(0..file_name.len() - 6))
@@ -291,7 +293,7 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
             "\n{INDENT}  You can still manually overwrite {} with the following command:\n  {command}",
             config.local_branch.cyan(),
         );
-        std::process::exit(1)
+        process::exit(1)
     }
 
     Ok(())

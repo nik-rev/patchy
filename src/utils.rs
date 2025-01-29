@@ -1,12 +1,12 @@
 use anyhow::anyhow;
-use rand::Rng;
+use rand::{distributions, Rng};
 use reqwest::{header::USER_AGENT, Client};
 
 pub fn with_uuid(s: &str) -> String {
     format!(
         "{uuid}-{s}",
         uuid = rand::thread_rng()
-            .sample_iter(&rand::distributions::Alphanumeric)
+            .sample_iter(&distributions::Alphanumeric)
             .take(4)
             .map(char::from)
             .collect::<String>()
