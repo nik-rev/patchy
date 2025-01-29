@@ -1,9 +1,11 @@
+pub mod branch_fetch;
 pub mod gen_patch;
 pub mod help;
 pub mod init;
 pub mod pr_fetch;
 pub mod run;
 
+pub use branch_fetch::branch_fetch;
 pub use gen_patch::gen_patch;
 pub use help::help;
 pub use init::init;

@@ -144,7 +144,7 @@ pub async fn pr_fetch(args: &CommandArgs) -> anyhow::Result<()> {
             pull_request,
             &client,
             maybe_custom_branch_name.as_deref(),
-            hash,
+            hash.as_deref(),
         )
         .await
         {

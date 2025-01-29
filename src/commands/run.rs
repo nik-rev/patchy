@@ -119,7 +119,7 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
         },
     };
 
-    add_remote_branch(&info, &commit_hash)?;
+    add_remote_branch(&info, commit_hash.as_deref())?;
 
     let previous_branch = checkout_from_remote(
         &info.branch.local_branch_name,
@@ -143,7 +143,14 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
             let pull_request = ignore_octothorpe(pull_request);
             let (pull_request, commit_hash) = parse_if_maybe_hash(&pull_request, " @ ");
             // TODO: refactor this to not use such deep nesting
-            match fetch_pull_request(&config.repo, &pull_request, &client, None, &commit_hash).await
+            match fetch_pull_request(
+                &config.repo,
+                &pull_request,
+                &client,
+                None,
+                commit_hash.as_deref(),
+            )
+            .await
             {
                 Ok((response, info)) => {
                     match merge_pull_request(

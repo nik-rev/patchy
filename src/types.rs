@@ -35,14 +35,14 @@ pub struct Repo {
 
 #[derive(Debug)]
 pub struct Branch {
-    pub local_branch_name: String,
     pub upstream_branch_name: String,
+    pub local_branch_name: String,
 }
 
 #[derive(Debug)]
 pub struct Remote {
-    pub local_remote_alias: String,
     pub repository_url: String,
+    pub local_remote_alias: String,
 }
 
 #[derive(Debug)]

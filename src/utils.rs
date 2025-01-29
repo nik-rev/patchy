@@ -2,8 +2,6 @@ use anyhow::anyhow;
 use rand::Rng;
 use reqwest::{header::USER_AGENT, Client};
 
-use crate::types::GitHubResponse;
-
 pub fn with_uuid(s: &str) -> String {
     format!(
         "{uuid}-{s}",
@@ -35,7 +33,7 @@ pub fn display_link(text: &str, url: &str) -> String {
     format!("\u{1b}]8;;{}\u{1b}\\{}\u{1b}]8;;\u{1b}\\", url, text)
 }
 
-pub async fn make_request(client: &Client, url: &str) -> anyhow::Result<GitHubResponse> {
+pub async fn make_request(client: &Client, url: &str) -> anyhow::Result<String> {
     let request = client
         .get(url)
         .header(USER_AGENT, "{APP_NAME}")
@@ -46,11 +44,7 @@ pub async fn make_request(client: &Client, url: &str) -> anyhow::Result<GitHubRe
         Ok(res) if res.status().is_success() => {
             let out = res.text().await?;
 
-            let response: GitHubResponse = serde_json::from_str(&out).map_err(|err| {
-                anyhow!("Could not parse response.\n{out}. Could not parse because: \n{err}")
-            })?;
-
-            Ok(response)
+            Ok(out)
         }
         Ok(res) => {
             let status = res.status();
