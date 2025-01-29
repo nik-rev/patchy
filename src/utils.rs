@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use rand::{distributions, Rng};
+use rand::{distributions, Rng as _};
 use reqwest::{header::USER_AGENT, Client};
 
 pub fn with_uuid(s: &str) -> String {

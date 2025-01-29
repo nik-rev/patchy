@@ -16,6 +16,7 @@ homepage = "https://github.com/nik-rev/patchy"
 pedantic = { priority = -1, level = "warn" }
 nursery = { priority = -1, level = "warn" }
 cargo = { priority = -1, level = "warn" }
+perf = { priority = -1, level = "deny" }
 
 # sometimes it can be more readable not to inline format!() args
 uninlined_format_args = "allow"
@@ -43,10 +44,12 @@ verbose_file_reads = "warn"
 # Each 'unsafe' block should always contain exactly 1 unsafe operation
 # with clear documentation why the invariants are upheld.
 
-undocumented_unsafe_blocks = "forbid"
-unnecessary_safety_comment = "forbid"
-unnecessary_safety_doc = "forbid"
-multiple_unsafe_ops_per_block = "forbid"
+undocumented_unsafe_blocks = "deny"
+unnecessary_safety_comment = "deny"
+unnecessary_safety_doc = "deny"
+multiple_unsafe_ops_per_block = "deny"
+# not specifying representation may cause undefined behaviour
+default_union_representation = "deny"
 
 # == correctness ==
 # Program may behave unexpectedly
@@ -55,6 +58,17 @@ create_dir = "deny"
 filetype_is_file = "deny"
 # may cause memory leaks
 mem_forget = "deny"
+assertions_on_result_states = "deny"
+# The conversion might include a dangerous cast that might go undetected due to the type being inferred.
+as_pointer_underscore = "deny"
+as_underscore = "deny"
+# bloats the binary size with unneeded files
+doc_include_without_cfg = "deny"
+# casting a function to a pointer is likely a mistake
+fn_to_numeric_cast_any = "deny"
+# integer division discards the remainder and is likely a mistake
+integer_division = "deny"
+lossy_float_literal = "deny"
 
 # == performance ==
 
@@ -67,6 +81,7 @@ rc_buffer = "warn"
 # prefer using pattern matching
 string_lit_chars_any = "warn"
 missing_asserts_for_indexing = "warn"
+pathbuf_init_then_push = "warn"
 
 # == readabilty ==
 
@@ -97,6 +112,94 @@ missing_assert_message = "warn"
 get_unwrap = "warn"
 if_then_some_else_none = "warn"
 impl_trait_in_params = "warn"
+map_err_ignore = "warn"
+# explicit imports
+alloc_instead_of_core = "warn"
+std_instead_of_alloc = "warn"
+std_instead_of_core = "warn"
+# may give the impression that we have more test coverage than what we have in reality
+cfg_not_test = "warn"
+# Rc::clone($expr) is way better than $expr.clone(), when we see `.clone()`
+# we instantly might think "expensive". But cloning a pointer isn't. It's
+# good to be explicit
+clone_on_ref_ptr = "warn"
+decimal_literal_representation = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+error_impl_error = "warn"
+inline_asm_x86_att_syntax = "warn"
+multiple_inherent_impl = "warn"
+pub_without_shorthand = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+# same name from a trait and one not from a trait can be confusing
+same_name_method = "warn"
+# more explicit and avoids polluting the scope
+unused_trait_names = "warn"
+
+# == enable these before pushing a new release ==
+# dbg_macro = "deny"
+# todo = "warn"
+# unimplemented = "warn"
+# use_debug = "warn"
+
+# == not enabled ==
+# disallowed_script_idents = "allow"
+# big_endian_bytes = "allow"
+# default_numeric_fallback = "allow"
+# empty_drop = "allow"
+# exhaustive_enums = "allow"
+# exhaustive_structs = "allow"
+# exit = "allow"
+# field_scoped_visibility_modifiers = "allow"
+# float_arithmetic = "allow"
+# float_cmp_const = "allow"
+# host_endian_bytes = "allow"
+# implicit_return = "allow"
+# indexing_slicing = "allow"
+# inline_asm_x86_intel_syntax = "allow"
+# integer_division_remainder_used = "allow"
+# iter_over_hash_type = "allow"
+# large_include_file = "allow"
+# let_underscore_must_use = "allow"
+# let_underscore_untyped = "allow"
+# little_endian_bytes = "allow"
+# min_ident_chars = "allow"
+# missing_docs_in_private_items = "allow"
+# missing_inline_in_public_items = "allow"
+# missing_trait_methods = "allow"
+# mod_module_files = "allow"
+# module_name_repetitions = "allow"
+# modulo_arithmetic = "allow"
+# panic = "allow"
+# non_ascii_literal = "allow"
+# panic_in_result_fn = "allow"
+# partial_pub_fields = "allow"
+# print_stderr = "allow"
+# print_stdout = "allow"
+# expect_used = "allow"
+# pub_use = "allow"
+# # we prefer using the shorthand
+# pub_with_shorthand = "allow"
+# question_mark_used = "allow"
+# ref_patterns = "allow"
+# # we prefer outside of the block instead
+# semicolon_inside_block = "allow"
+# shadow_reuse = "allow"
+# shadow_same = "allow"
+# # We like to separate literal suffixes by an underscore
+# separated_literal_suffix = "allow"
+# single_char_lifetime_names = "allow"
+# single_call_fn = "allow"
+# string_add = "allow"
+# string_slice = "allow"
+# unreachable = "allow"
+# suspicious_xor_used_as_pow = "allow"
+# unused_result_ok = "allow"
+# unwrap_in_result = "allow"
+# unwrap_used = "allow"
+# shadow_unrelated = "allow"
+# pattern_type_mismatch = "allow"
 
 [[bin]]
 name = "patchy"

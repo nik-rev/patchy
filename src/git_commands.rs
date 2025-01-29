@@ -1,5 +1,5 @@
 use crate::{fail, types::Repo, utils::display_link};
-use colored::Colorize;
+use colored::Colorize as _;
 use std::{
     env, io,
     path::{Path, PathBuf},

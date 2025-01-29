@@ -1,4 +1,4 @@
-use colored::Colorize;
+use colored::Colorize as _;
 
 use crate::{
     commands::{

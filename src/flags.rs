@@ -1,7 +1,8 @@
 use core::fmt;
-use std::{env, fmt::Display};
+use core::fmt::Display;
+use std::env;
 
-use colored::Colorize;
+use colored::Colorize as _;
 use once_cell::sync::Lazy;
 
 use crate::{commands::help::format_description, types::CommandArgs};

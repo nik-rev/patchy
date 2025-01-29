@@ -1,5 +1,5 @@
 use std::fs::read_to_string;
-use std::io::Write;
+use std::io::Write as _;
 use std::{
     ffi::OsString,
     fs::{File, ReadDir},
@@ -10,7 +10,7 @@ use tempfile::tempfile;
 use crate::git_commands::GIT_ROOT;
 use crate::CONFIG_ROOT;
 
-pub fn backup_files(config_files: ReadDir) -> anyhow::Result<Vec<(OsString, File, String)>> {
+pub fn files(config_files: ReadDir) -> anyhow::Result<Vec<(OsString, File, String)>> {
     let mut backups = Vec::new();
 
     for entry in config_files {
@@ -29,7 +29,7 @@ pub fn backup_files(config_files: ReadDir) -> anyhow::Result<Vec<(OsString, File
 
     Ok(backups)
 }
-pub fn restore_backup(file_name: &OsString, contents: &str) -> anyhow::Result<()> {
+pub fn restore(file_name: &OsString, contents: &str) -> anyhow::Result<()> {
     let path = GIT_ROOT.join(PathBuf::from(CONFIG_ROOT).join(file_name));
     let mut file = File::create(&path)?;
 

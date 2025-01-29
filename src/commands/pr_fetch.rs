@@ -10,7 +10,7 @@ use crate::success;
 use crate::types::CommandArgs;
 use crate::utils::display_link;
 use anyhow::anyhow;
-use colored::Colorize;
+use colored::Colorize as _;
 
 use super::help::{HELP_FLAG, VERSION_FLAG};
 use super::run::parse_if_maybe_hash;

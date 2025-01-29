@@ -25,7 +25,7 @@ pub static BRANCH_FETCH_BRANCH_NAME_FLAG: Flag<'static> = Flag {
 pub static BRANCH_FETCH_FLAGS: &[&Flag<'static>; 2] =
     &[&BRANCH_FETCH_BRANCH_NAME_FLAG, &BRANCH_FETCH_CHECKOUT_FLAG];
 
-pub struct BranchFetchItem {
+pub struct Item {
     /// # Examples
     ///
     /// helix-editor/helix
@@ -48,7 +48,7 @@ pub struct BranchFetchItem {
     commit_hash: Option<String>,
 }
 
-impl BranchFetchItem {
+impl Item {
     pub fn new(
         repo: String,
         branch: String,
@@ -124,7 +124,7 @@ pub fn branch_fetch(args: &CommandArgs) {
             args.next();
         };
 
-        branches_with_maybe_custom_names.push(BranchFetchItem::new(
+        branches_with_maybe_custom_names.push(Item::new(
             repo.to_owned(),
             branch.to_owned(),
             maybe_custom_branch_name,

@@ -1,10 +1,10 @@
 use std::{fs, process};
 
 use anyhow::anyhow;
-use colored::Colorize;
+use colored::Colorize as _;
 
 use crate::{
-    backup::{backup_files, restore_backup},
+    backup::{files, restore},
     commands::{init, pr_fetch::ignore_octothorpe},
     confirm_prompt, fail,
     flags::Flag,
@@ -106,7 +106,7 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
         )
     })?;
 
-    let backed_up_files = backup_files(config_files).map_err(|err| {
+    let backed_up_files = files(config_files).map_err(|err| {
         anyhow!("Could not create backups for configuration files, aborting.\n{err}")
     })?;
 
@@ -204,8 +204,7 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
     };
 
     for (file_name, _file, contents) in &backed_up_files {
-        restore_backup(file_name, contents)
-            .map_err(|err| anyhow!("Could not restore backups:\n{err}"))?;
+        restore(file_name, contents).map_err(|err| anyhow!("Could not restore backups:\n{err}"))?;
 
         // apply patches if they exist
         if let Some(patches) = &config.patches {

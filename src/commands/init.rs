@@ -1,9 +1,9 @@
 use std::{
     fs::{self, File},
-    io::Write,
+    io::Write as _,
 };
 
-use colored::Colorize;
+use colored::Colorize as _;
 
 use crate::{
     confirm_prompt, git_commands::GIT_ROOT, success, types::CommandArgs, CONFIG_FILE, CONFIG_ROOT,
