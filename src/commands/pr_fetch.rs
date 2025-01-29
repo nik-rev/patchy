@@ -54,6 +54,11 @@ pub static PR_FETCH_FLAGS: &[&Flag<'static>; 5] = &[
 ];
 
 pub async fn pr_fetch(args: &CommandArgs) -> anyhow::Result<()> {
+    if args.is_empty() {
+        let _ = help(Some("pr-fetch"));
+        process::exit(1);
+    }
+
     let has_checkout_flag = PR_FETCH_CHECKOUT_FLAG.is_in(args);
 
     let mut args = args.iter().peekable();

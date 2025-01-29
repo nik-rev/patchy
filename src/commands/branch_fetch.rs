@@ -1,10 +1,13 @@
 use std::process;
 
+use colored::Colorize as _;
+
 use crate::{
     commands::help,
     fail,
     flags::{is_valid_flag, Flag},
-    git_commands::is_valid_branch_name,
+    git_commands::{fetch_branch, is_valid_branch_name, GIT},
+    success,
     types::CommandArgs,
 };
 
@@ -29,23 +32,23 @@ pub struct Item {
     /// # Examples
     ///
     /// helix-editor/helix
-    repo: String,
+    pub repo: String,
     /// # Examples
     ///
     /// master
-    branch: String,
+    pub branch: String,
     /// If specified, use a custom branch name instead of a generated one
     ///
     /// # Examples
     ///
     /// my-custom-branch123
-    local_branch_name: Option<String>,
+    pub local_branch_name: Option<String>,
     /// If specified, do a **hard reset** to this commit when fetching the branch
     ///
     /// # Examples
     ///
     /// 6049f2035
-    commit_hash: Option<String>,
+    pub commit_hash: Option<String>,
 }
 
 impl Item {
@@ -76,14 +79,25 @@ Valid format is: username/repo/branch. Example: helix-editor/helix/master",
 
         Ok(Self::new(repo.to_owned(), branch.to_owned(), None, hash))
     }
+
+    #[must_use]
+    pub fn with_branch_name(mut self, branch_name: Option<String>) -> Self {
+        self.local_branch_name = branch_name;
+        self
+    }
 }
 
-pub fn branch_fetch(args: &CommandArgs) {
+pub async fn branch_fetch(args: &CommandArgs) -> anyhow::Result<()> {
+    if args.is_empty() {
+        let _ = help(Some("branch-fetch"));
+        process::exit(1);
+    }
+
     let has_checkout_flag = BRANCH_FETCH_CHECKOUT_FLAG.is_in(args);
 
     let mut args = args.iter().peekable();
 
-    let mut branches_with_maybe_custom_names = vec![];
+    let mut items = vec![];
 
     let mut no_more_flags = false;
 
@@ -105,11 +119,7 @@ pub fn branch_fetch(args: &CommandArgs) {
             continue;
         }
 
-        let (remote, hash) = parse_if_maybe_hash(arg, "@");
-
-        let Some((repo, branch)) = remote.rsplit_once('/') else {
-            fail!("Invalid format: {}, skipping. Valid format is: username/repo/branch. Example: helix-editor/helix/master", remote);
-
+        let Ok(item) = Item::create(arg).map_err(|err| fail!("{err}")) else {
             continue;
         };
 
@@ -124,13 +134,51 @@ pub fn branch_fetch(args: &CommandArgs) {
             args.next();
         };
 
-        branches_with_maybe_custom_names.push(Item::new(
-            repo.to_owned(),
-            branch.to_owned(),
-            maybe_custom_branch_name,
-            hash,
-        ));
+        let item = item.with_branch_name(maybe_custom_branch_name);
+
+        items.push(item);
     }
 
     let client = reqwest::Client::new();
+
+    for (i, item) in items.into_iter().enumerate() {
+        let hash = item.commit_hash.clone();
+        let repo = item.repo.clone();
+        match fetch_branch(item, &client).await {
+            Ok((_, info)) => {
+                success!(
+                    "Fetched branch {}/{} available at branch {}{}",
+                    repo,
+                    info.branch.upstream_branch_name,
+                    info.branch.local_branch_name.bright_cyan(),
+                    hash.map(|commit_hash| format!(", at commit {}", commit_hash.bright_yellow()))
+                        .unwrap_or_default()
+                );
+
+                // Attempt to cleanup after ourselves
+                let _ = GIT(&["remote", "remove", &info.remote.local_remote_alias]);
+
+                // If user uses --checkout flag, we're going to checkout the first fetched branch
+                if i == 0 && has_checkout_flag {
+                    if let Err(cant_checkout) = GIT(&["checkout", &info.branch.local_branch_name]) {
+                        fail!(
+                            "Could not check out branch {}:\n{cant_checkout}",
+                            info.branch.local_branch_name
+                        );
+                    } else {
+                        success!(
+                            "Automatically checked out the first branch: {}",
+                            info.branch.local_branch_name
+                        );
+                    }
+                }
+            }
+            Err(err) => {
+                fail!("{err}");
+                continue;
+            }
+        };
+    }
+
+    Ok(())
 }

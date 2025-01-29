@@ -1,4 +1,5 @@
-use colored::Colorize;
+use colored::Colorize as _;
+use patchy::commands::branch_fetch::branch_fetch;
 use patchy::commands::help::{HELP_FLAG, VERSION_FLAG};
 use patchy::commands::{gen_patch, help, init, pr_fetch, run};
 use patchy::fail;
@@ -16,6 +17,7 @@ async fn process_subcommand(subcommand: &str, args: CommandArgs) -> Result<()> {
         "gen-patch" => gen_patch(&args)?,
         // lower level commands
         "pr-fetch" => pr_fetch(&args).await?,
+        "branch-fetch" => branch_fetch(&args).await?,
         unrecognized => {
             if !unrecognized.is_empty() {
                 fail!(

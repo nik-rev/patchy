@@ -1,4 +1,4 @@
-use crate::{fail, types::Repo, utils::display_link};
+use crate::{commands::branch_fetch, fail, types::Repo, utils::display_link};
 use colored::Colorize as _;
 use std::{
     env, io,
@@ -289,17 +289,14 @@ fn first_available_branch(branch: &str) -> AvailableBranch {
 }
 
 pub async fn fetch_branch(
-    repo: &str,
+    item: branch_fetch::Item,
     client: &Client,
-    branch_name: &str,
-    custom_branch_name: Option<&str>,
-    commit_hash: Option<&str>,
 ) -> anyhow::Result<(Repo, BranchAndRemote)> {
-    let url = format!("https://api.github.com/repos/{repo}");
+    let url = format!("https://api.github.com/repos/{}", item.repo);
 
     let response = make_request(client, &url)
         .await
-        .map_err(|err| anyhow!("Could not fetch branch: {repo}\n{err}\n"))?;
+        .map_err(|err| anyhow!("Could not fetch branch: {}\n{err}\n", item.repo))?;
 
     let response: Repo = serde_json::from_str(&response).map_err(|err| {
         anyhow!("Could not parse response.\n{response}. Could not parse because: \n{err}")
@@ -307,10 +304,9 @@ pub async fn fetch_branch(
 
     let info = BranchAndRemote {
         branch: Branch {
-            upstream_branch_name: branch_name.to_owned(),
-            local_branch_name: custom_branch_name.map_or_else(
+            local_branch_name: item.local_branch_name.map_or_else(
                 || {
-                    let branch_name = &format!("{repo}/{branch_name}");
+                    let branch_name = &format!("{}/{}", item.repo, item.branch);
 
                     match first_available_branch(branch_name) {
                         AvailableBranch::First => branch_name.to_string(),
@@ -319,15 +315,20 @@ pub async fn fetch_branch(
                 },
                 Into::into,
             ),
+            upstream_branch_name: item.branch,
         },
         remote: Remote {
             repository_url: response.clone_url.clone(),
-            local_remote_alias: with_uuid(repo),
+            local_remote_alias: with_uuid(&item.repo),
         },
     };
 
-    add_remote_branch(&info, commit_hash)
-        .map_err(|err| anyhow!("Could not add remote branch {repo}, skipping.\n{err}"))?;
+    add_remote_branch(&info, item.commit_hash.as_deref()).map_err(|err| {
+        anyhow!(
+            "Could not add remote branch {}, skipping.\n{err}",
+            item.repo
+        )
+    })?;
 
     Ok((response, info))
 }

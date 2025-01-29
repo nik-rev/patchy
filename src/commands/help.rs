@@ -52,6 +52,10 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
         "pr-fetch",
         "Fetch pull request for a GitHub repository as a local branch",
     );
+    let branch_fetch = format_subcommand(
+        "branch-fetch",
+        "Fetch branches for a GitHub repository as a local branch",
+    );
     let gen_patch = format_subcommand("gen-patch", "Generate a .patch file from commit hashes");
     let run = format_subcommand("run", &format!("Start {APP_NAME}"));
     let header = format!(
@@ -163,13 +167,13 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
 
             let example_1 = format!(
                 "{}
-            {}",
+    {}",
                 "helix-editor/helix/master".bright_green(),
                 format_description("Fetch a single branch")
             );
             let example_2 = format!(
                 "{}
-            {}",
+    {}",
                 "'helix-editor/helix/master@6049f20'".bright_green(),
                 format_description("Fetch a single branch at a certain commit")
             );
@@ -291,6 +295,8 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
     {gen_patch} 
 
     {pr_fetch} 
+
+    {branch_fetch} 
 
   Flags:
 

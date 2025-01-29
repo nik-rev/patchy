@@ -16,7 +16,6 @@ homepage = "https://github.com/nik-rev/patchy"
 pedantic = { priority = -1, level = "warn" }
 nursery = { priority = -1, level = "warn" }
 cargo = { priority = -1, level = "warn" }
-perf = { priority = -1, level = "deny" }
 
 # sometimes it can be more readable not to inline format!() args
 uninlined_format_args = "allow"
@@ -34,16 +33,10 @@ too_many_lines = "allow"
 maybe_infinite_iter = "allow"
 
 # === Restrictions ===
-
-absolute_paths = "warn"
-deref_by_slicing = "warn"
-wildcard_enum_match_arm = "warn"
-verbose_file_reads = "warn"
-
 # == safety ==
+
 # Each 'unsafe' block should always contain exactly 1 unsafe operation
 # with clear documentation why the invariants are upheld.
-
 undocumented_unsafe_blocks = "deny"
 unnecessary_safety_comment = "deny"
 unnecessary_safety_doc = "deny"
@@ -69,6 +62,7 @@ fn_to_numeric_cast_any = "deny"
 # integer division discards the remainder and is likely a mistake
 integer_division = "deny"
 lossy_float_literal = "deny"
+wildcard_enum_match_arm = "deny"
 
 # == performance ==
 
@@ -136,6 +130,9 @@ rest_pat_in_fully_bound_structs = "warn"
 same_name_method = "warn"
 # more explicit and avoids polluting the scope
 unused_trait_names = "warn"
+absolute_paths = "warn"
+deref_by_slicing = "warn"
+verbose_file_reads = "warn"
 
 # == enable these before pushing a new release ==
 # dbg_macro = "deny"
