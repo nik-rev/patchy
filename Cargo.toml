@@ -17,31 +17,6 @@ pedantic = { priority = -1, level = "warn" }
 nursery = { priority = -1, level = "warn" }
 cargo = { priority = -1, level = "warn" }
 
-# conflicts with self_named_module_files
-mod_module_files = "allow"
-# it's normal to have 1 char lifetime names
-single_char_lifetime_names = "allow"
-# having 1 char identifiers is okay in some cases,
-# such as when the identifier has a short lifetime
-# for instance when in a closure
-min_ident_chars = "allow"
-# unnecesserily makes code more verbose, especially within closures
-implicit_return = "allow"
-# shadowing is fine
-shadow_unrelated = "allow"
-# makes source code harder to read.
-# Even stuff like exclamation marks would have to be used with ascii literals
-non_ascii_literal = "allow"
-# process::exit can be useful
-exit = "allow"
-# since you can just use _ = $expr to bypass this lint, it's pointless
-let_underscore_untyped = "allow"
-# sometimes it's useful to ignore #[must_use]
-let_underscore_must_use = "allow"
-# we don't want to always #[inline]
-missing_inline_in_public_items = "allow"
-# ? operator is very useful
-question_mark_used = "allow"
 # sometimes it can be more readable not to inline format!() args
 uninlined_format_args = "allow"
 # we don't want to mark everything with #[must_use]
@@ -50,10 +25,6 @@ must_use_candidate = "allow"
 # we can make to the function without breaking the "const" contract
 # we may not always want to do that
 missing_const_for_fn = "allow"
-# we can have items in modules which repeat the module's name, it's fine
-module_name_repetitions = "allow"
-# we're not a crate: we don't want to mark all structs with #[non_exhaustive]
-exhaustive_structs = "allow"
 # we're not a crate: documenting all errors is not necessary
 missing_errors_doc = "allow"
 # placing an arbitrary limit on how many lines we can have is unnecessary
