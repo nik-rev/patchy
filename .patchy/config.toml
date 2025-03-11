@@ -15,7 +15,7 @@ repo = "helix-editor/helix"
 # remote-branch = "master"
 # remote-branch = "main"
 
-remote-branch = "main"
+remote-branch = "master"
 
 # Branch which patchy will use to do all of its work on
 #
