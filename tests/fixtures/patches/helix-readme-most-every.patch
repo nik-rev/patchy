@@ -1,0 +1,25 @@
+From 4f82761df065d4f0d49dd7778049e0b04a45e0f8 Mon Sep 17 00:00:00 2001
+From: Jonathan Morley <jmorley@cvent.com>
+Date: Wed, 12 Mar 2025 11:18:41 -0400
+Subject: [PATCH] patch-every
+
+---
+ README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/README.md b/README.md
+index be7304cc..103df743 100644
+--- a/README.md
++++ b/README.md
+@@ -26,7 +26,7 @@ myself agreeing with most of Kakoune's design decisions.
+ For more information, see the [website](https://helix-editor.com) or
+ [documentation](https://docs.helix-editor.com/).
+ 
+-Most shortcuts/keymaps can be found [in the documentation on the website](https://docs.helix-editor.com/keymap.html).
++Every shortcut/keymap can be found [in the documentation on the website](https://docs.helix-editor.com/keymap.html).
+ 
+ [Troubleshooting](https://github.com/helix-editor/helix/wiki/Troubleshooting)
+ 
+-- 
+2.47.1
+
