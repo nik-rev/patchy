@@ -62,10 +62,8 @@ fn test_conflicting_patches() {
         .current_dir(tmp.path())
         .assert()
         .failure()
-        // Unsure why, but it starts with a patch in the middle of the patch list
-        .stdout(predicate::str::contains("✓ Applied patch helix-readme-all-most patch-most"))
-        // Then fails (conflicts, expected)
-        .stderr(predicate::str::contains("✗ Could not apply patch helix-readme-all-every, skipping"))
+        .stdout(predicate::str::contains("✓ Applied patch helix-readme-all-every patch-every"))
+        .stderr(predicate::str::contains("✗ Could not apply patch helix-readme-all-most, skipping"))
         .stdout(predicate::str::contains("Success!").not());
 }
 
@@ -79,8 +77,23 @@ fn test_sequential_patches() {
         .current_dir(tmp.path())
         .assert()
         // This should pass, as the patches are applied in order
-        .failure()
-        // Again, starts in the middle
-        .stderr(predicate::str::contains("✗ Could not apply patch helix-readme-some-most, skipping"))
-        .stdout(predicate::str::contains("Success!").not());
+        .success()
+        .stdout(predicate::str::contains("✓ Applied patch helix-readme-all-some patch-some"))
+        .stdout(predicate::str::contains("✓ Applied patch helix-readme-some-most patch-most"))
+        .stdout(predicate::str::contains("✓ Applied patch helix-readme-most-every patch-every"))
+        .stdout(predicate::str::contains("Success!"));
+}
+
+#[test]
+fn test_nonexistent_patch() {
+    let tmp = initialize("helix-editor/helix", "master", vec![], vec!["foo"]);
+
+    std::process::Command::cargo_bin(env!("CARGO_PKG_NAME"))
+        .unwrap()
+        .args(["run", "--yes"])
+        .current_dir(tmp.path())
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("✗ Could not find patch foo, skipping"))
+        .stdout(predicate::str::contains("Success!"));
 }

@@ -189,42 +189,38 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
 
     for (file_name, _file, contents) in &backed_up_files {
         restore(file_name, contents).map_err(|err| anyhow!("Could not restore backups:\n{err}"))?;
+    }
 
-        // apply patches if they exist
-        if let Some(patches) = &config.patches {
-            let file_name = file_name
-                .to_str()
-                .and_then(|file_name| file_name.get(0..file_name.len() - 6))
-                .unwrap_or_default();
-
-            if patches.contains(file_name) {
-                if let Err(err) = GIT(&[
-                    "am",
-                    "--keep-cr",
-                    "--signoff",
-                    &format!(
-                        "{}/{file_name}.patch",
-                        GIT_ROOT.join(CONFIG_ROOT).to_str().unwrap_or_default()
-                    ),
-                ]) {
-                    GIT(&["am", "--abort"])?;
-                    return Err(anyhow!(
-                        "Could not apply patch {file_name}, skipping\n{err}"
-                    ));
-                };
-
-                let last_commit_message = GIT(&["log", "-1", "--format=%B"])?;
-                success!(
-                    "Applied patch {file_name} {}",
-                    last_commit_message
-                        .lines()
-                        .next()
-                        .unwrap_or_default()
-                        .bright_blue()
-                        .italic()
-                );
-            }
+    // apply patches if they exist
+    for patch in config.patches.into_iter() {
+        let file_name = GIT_ROOT.join(CONFIG_ROOT).join(&format!("{patch}.patch"));
+        if !file_name.exists() {
+            fail!("Could not find patch {patch}, skipping");
+            continue;
         }
+
+        if let Err(err) = GIT(&[
+            "am",
+            "--keep-cr",
+            "--signoff",
+            file_name.to_str().unwrap()
+        ]) {
+            GIT(&["am", "--abort"])?;
+            return Err(anyhow!(
+                "Could not apply patch {patch}, skipping\n{err}"
+            ));
+        };
+
+        let last_commit_message = GIT(&["log", "-1", "--format=%B"])?;
+        success!(
+            "Applied patch {patch} {}",
+            last_commit_message
+                .lines()
+                .next()
+                .unwrap_or_default()
+                .bright_blue()
+                .italic()
+        );
     }
 
     GIT(&["add", CONFIG_ROOT])?;

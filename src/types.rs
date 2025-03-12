@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +7,7 @@ pub type CommandArgs = IndexSet<String>;
 #[serde(rename_all = "kebab-case")]
 pub struct Configuration {
     pub local_branch: String,
-    pub patches: Option<HashSet<String>>,
+    pub patches: IndexSet<String>,
     pub pull_requests: Vec<String>,
     pub remote_branch: String,
     pub repo: String,
