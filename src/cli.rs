@@ -133,7 +133,7 @@ impl Cli {
                 return Err(ParseError::InvalidFlag(flag));
             }
 
-            // If literally nothing was supplied, show help
+            // Literally nothing was supplied
             if !cli.help && !cli.version {
                 return Err(ParseError::NoSubcommandSpecified);
             }
@@ -263,6 +263,58 @@ mod tests {
     #[test]
     fn empty() {
         assert_eq!(patchy(&[]), Err(ParseError::NoSubcommandSpecified));
+    }
+
+    #[test]
+    fn run() {
+        assert_eq!(
+            patchy(&["run"]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::Run { yes: false }),
+                help: false,
+                version: false
+            })
+        );
+        assert_eq!(
+            patchy(&["run", "--yes"]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::Run { yes: true }),
+                help: false,
+                version: false
+            })
+        );
+        assert_eq!(
+            patchy(&["-y", "run"]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::Run { yes: true }),
+                help: false,
+                version: false
+            })
+        );
+        assert_eq!(
+            patchy(&["-h", "run"]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::Run { yes: false }),
+                help: true,
+                version: false
+            })
+        );
+        assert_eq!(
+            patchy(&["-v", "run"]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::Run { yes: false }),
+                help: false,
+                version: true
+            })
+        );
+        assert_eq!(
+            patchy(&["--yes", "run", "--help"]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::Run { yes: true }),
+                help: true,
+                version: false
+            })
+        );
     }
 
     #[test]
