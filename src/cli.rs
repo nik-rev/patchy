@@ -6,14 +6,14 @@
 use core::{error, fmt};
 use std::env;
 
-#[derive(Default)]
+#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Cli {
     pub subcommand: Option<Subcommand>,
     pub help: bool,
     pub version: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ParseError {
     NoCommandName,
     InvalidCommandName(String),
@@ -133,13 +133,13 @@ impl Cli {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Patch {
     commit: String,
     custom_filename: Option<String>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Pr {
     /// Fetch PR of this number
     number: u32,
@@ -149,7 +149,7 @@ pub struct Pr {
     custom_branch_name: Option<String>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Branch {
     /// Name of this branch in the remote
     name: String,
@@ -159,6 +159,7 @@ pub struct Branch {
     custom_branch_name: Option<String>,
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Subcommand {
     Init,
     Run {
@@ -182,5 +183,140 @@ pub enum Subcommand {
 impl Subcommand {
     pub fn parse_arg(&mut self, arg: String) {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn patchy(args: &[&str]) -> Result<Cli, ParseError> {
+        dbg!(args);
+        Cli::parse(args.iter().map(ToString::to_string))
+    }
+
+    #[test]
+    fn init() {
+        assert_eq!(
+            patchy(&["init"]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::Init),
+                help: false,
+                version: false
+            })
+        );
+        assert_eq!(
+            patchy(&["init --help"]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::Init),
+                help: true,
+                version: false
+            })
+        );
+        assert_eq!(
+            patchy(&["init -h"]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::Init),
+                help: true,
+                version: false
+            })
+        );
+        assert_eq!(
+            patchy(&["-h init"]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::Init),
+                help: true,
+                version: false
+            })
+        );
+        assert_eq!(
+            patchy(&["--help init"]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::Init),
+                help: true,
+                version: false
+            })
+        );
+    }
+
+    #[test]
+    fn no_command() {
+        assert_eq!(
+            patchy(&[]),
+            Ok(Cli {
+                subcommand: None,
+                help: false,
+                version: false
+            })
+        );
+        assert_eq!(
+            patchy(&["-h"]),
+            Ok(Cli {
+                subcommand: None,
+                help: true,
+                version: false
+            })
+        );
+        assert_eq!(
+            patchy(&["--help"]),
+            Ok(Cli {
+                subcommand: None,
+                help: true,
+                version: false
+            })
+        );
+        assert_eq!(
+            patchy(&["-v"]),
+            Ok(Cli {
+                subcommand: None,
+                help: false,
+                version: true
+            })
+        );
+        assert_eq!(
+            patchy(&["--version"]),
+            Ok(Cli {
+                subcommand: None,
+                help: false,
+                version: true
+            })
+        );
+    }
+
+    #[test]
+    fn no_command_mutually_exclusive_flag() {
+        assert_eq!(
+            patchy(&["-h", "--version"]),
+            Err(ParseError::MutuallyExclusive(
+                "--help".to_owned(),
+                "--version".to_owned()
+            ))
+        );
+        assert_eq!(
+            patchy(&["--help", "--version"]),
+            Err(ParseError::MutuallyExclusive(
+                "--help".to_owned(),
+                "--version".to_owned()
+            ))
+        );
+        assert_eq!(
+            patchy(&["-v", "--help"]),
+            Err(ParseError::MutuallyExclusive(
+                "--version".to_owned(),
+                "--help".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn no_command_duplicate_flag() {
+        assert_eq!(
+            patchy(&["-h", "--help"]),
+            Err(ParseError::DuplicateFlag("--help".to_owned()))
+        );
+        assert_eq!(
+            patchy(&["-v", "--version"]),
+            Err(ParseError::DuplicateFlag("--help".to_owned()))
+        );
     }
 }
