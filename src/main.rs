@@ -45,7 +45,7 @@ async fn process_subcommand(subcommand: &str, args: CommandArgs) -> Result<(), B
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // let args = cli::Cli::parse(env::args())?;
+    // let args = cli::Cli::parse()?;
 
     // if args.help || args.subcommand.is_none() {
     //     todo!()
