@@ -4,7 +4,7 @@
 //! - `clap` doesn't allow passing flags for every argument (positional flags)
 //! - `clap` offers less control over how the help output is shown than we'd like, which means we would have write that from scratch if we want a good help menu.
 use core::{error, fmt};
-use std::env;
+use std::{collections::HashSet, env, fmt::Display, str::FromStr};
 
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Cli {
@@ -15,117 +15,179 @@ pub struct Cli {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ParseError {
-    NoCommandName,
+    NoSubcommandSpecified,
+    InvalidFlag(GlobalFlag),
+    InvalidArg(String),
     InvalidCommandName(String),
-    MutuallyExclusive(String, String),
-    DuplicateFlag(String),
+    MutuallyExclusiveFlags(GlobalFlag, GlobalFlag),
+    DuplicateFlag(GlobalFlag),
 }
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NoCommandName => write!(f, "No command name"),
+            Self::NoSubcommandSpecified => write!(f, "No command name"),
             Self::InvalidCommandName(name) => write!(f, "Invalid command: {name}"),
-            Self::MutuallyExclusive(one, two) => {
+            Self::MutuallyExclusiveFlags(one, two) => {
                 write!(f, "{one} and {two} cannot be used together")
             }
             Self::DuplicateFlag(flag) => write!(f, "{flag} can only be used once"),
+            Self::InvalidFlag(flag) => write!(f, "Invalid flag: {flag}"),
+            Self::InvalidArg(flag) => write!(f, "Invalid argument: {flag}"),
         }
     }
 }
 
 impl error::Error for ParseError {}
 
+/// These flags can only be used once
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
+pub enum GlobalFlag {
+    Help,
+    Version,
+    Yes,
+}
+
+impl GlobalFlag {
+    /// The set of flags which this flag cannot be used with
+    fn conflicts_with(self) -> HashSet<Self> {
+        match self {
+            Self::Help => HashSet::from([Self::Version]),
+            Self::Version => HashSet::from([Self::Help]),
+            Self::Yes => HashSet::new(),
+        }
+    }
+}
+
+impl FromStr for GlobalFlag {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "-h" | "--help" => Ok(Self::Help),
+            "-v" | "--version" => Ok(Self::Version),
+            "-y" | "--yes" => Ok(Self::Yes),
+            _ => Err(()),
+        }
+    }
+}
+
+impl Display for GlobalFlag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Help => write!(f, "--help"),
+            Self::Version => write!(f, "--version"),
+            Self::Yes => write!(f, "--yes"),
+        }
+    }
+}
+
 impl Cli {
-    pub fn parse<I: Iterator<Item = String>>(mut args: I) -> Result<Self, ParseError> {
+    pub fn parse() -> Result<Self, ParseError> {
+        Self::__parse(env::args())
+    }
+
+    /// To allow this function to be used in tests
+    pub fn __parse<Args: Iterator<Item = String>>(mut args: Args) -> Result<Self, ParseError> {
         let mut cli = Self::default();
 
         // skip the name used to invoke Patchy, we don't care about that
         let _ = args.next();
-        let command_name = args.next().ok_or(ParseError::NoCommandName)?;
 
         let args: Vec<_> = args.collect();
 
-        let mut health_and_version = |arg: &str| {
-            #[expect(clippy::useless_let_if_seq, reason = "More readable this way")]
-            let mut has_found_flag = false;
-            if arg == "-v" || arg == "--version" {
-                // cannot set again
-                if cli.version {
-                    return Err(ParseError::DuplicateFlag("--version".to_owned()));
-                }
-                // cannot have --help and --version
-                if cli.help {
-                    return Err(ParseError::MutuallyExclusive(
-                        "--help".to_owned(),
-                        "--version".to_owned(),
-                    ));
-                }
-                cli.version = true;
-                has_found_flag = true;
-            }
-            if arg == "-h" || arg == "--help" {
-                // cannot set again
-                if cli.help {
-                    return Err(ParseError::DuplicateFlag("--help".to_owned()));
-                }
-                // cannot have --help and --version
-                if cli.version {
-                    return Err(ParseError::MutuallyExclusive(
-                        "--help".to_owned(),
-                        "--version".to_owned(),
-                    ));
-                }
-                cli.help = true;
-                has_found_flag = true;
+        let mut global_flags = HashSet::<GlobalFlag>::new();
+        let mut other_args = vec![];
+
+        // PERF: Could be improved if we don't iterate twice over args
+        // Though in reality this should not be a problem
+        for arg in args {
+            if let Ok(flag) = arg.parse::<GlobalFlag>() {
+                if global_flags.contains(&flag) {
+                    return Err(ParseError::DuplicateFlag(flag));
+                };
+                if let Some(conflict) = global_flags.intersection(&flag.conflicts_with()).next() {
+                    return Err(ParseError::MutuallyExclusiveFlags(*conflict, flag));
+                };
+                global_flags.insert(flag);
+            } else {
+                // not a flag
+                other_args.push(arg);
+            };
+        }
+
+        if global_flags.remove(&GlobalFlag::Help) {
+            cli.help = true;
+        }
+
+        if global_flags.remove(&GlobalFlag::Version) {
+            cli.version = true;
+        }
+
+        let mut args = other_args.into_iter();
+
+        let Some(command_name) = args.next() else {
+            // When no command name is supplied, we can only supply GlobalFlag::Version or GlobalFlag::Help
+            // Both of which have been removed earlier. So we should have *no* global flags now.
+            if let Some(flag) = global_flags.into_iter().next() {
+                return Err(ParseError::InvalidFlag(flag));
             }
 
-            Ok(has_found_flag)
+            // If literally nothing was supplied, show help
+            if !cli.help && !cli.version {
+                return Err(ParseError::NoSubcommandSpecified);
+            }
+            return Ok(cli);
         };
 
         match command_name.as_str() {
             "init" => {
-                for arg in args {
-                    health_and_version(&arg)?;
-                }
                 cli.subcommand = Some(Subcommand::Init);
+                // takes no flags
+                if let Some(flag) = global_flags.into_iter().next() {
+                    return Err(ParseError::InvalidFlag(flag));
+                }
+                // takes no arguments
+                if let Some(arg) = args.next() {
+                    return Err(ParseError::InvalidArg(arg));
+                }
             }
             "run" => {
                 let mut yes = false;
-                for arg in args {
-                    if health_and_version(&arg)? {
-                        continue;
-                    };
-                    if arg == "-y" || arg == "--yes" {
-                        if yes {
-                            return Err(ParseError::DuplicateFlag("--yes".to_owned()));
-                        }
-                        yes = true;
-                    }
+                if global_flags.remove(&GlobalFlag::Yes) {
+                    yes = true;
+                };
+                // takes no other flags
+                if let Some(flag) = global_flags.into_iter().next() {
+                    return Err(ParseError::InvalidFlag(flag));
+                }
+                // takes no arguments
+                if let Some(arg) = args.next() {
+                    return Err(ParseError::InvalidArg(arg));
                 }
                 cli.subcommand = Some(Subcommand::Run { yes });
             }
-            "gen-patch" => {
-                let mut patches: Vec<Patch> = vec![];
-                for arg in args {
-                    health_and_version(&arg)?;
-                    let last = patches.last();
-                }
-            }
-            "pr-fetch" => {
-                for arg in args {
-                    health_and_version(&arg)?;
-                    todo!()
-                    // command.parse_arg(arg);
-                }
-            }
-            "branch-fetch" => {
-                for arg in args {
-                    health_and_version(&arg)?;
-                    todo!()
-                    // command.parse_arg(arg);
-                }
-            }
+            // "gen-patch" => {
+            //     let mut patches: Vec<Patch> = vec![];
+            //     for arg in args {
+            //         health_and_version(&arg)?;
+            //         let last = patches.last();
+            //     }
+            // }
+            // "pr-fetch" => {
+            //     for arg in args {
+            //         health_and_version(&arg)?;
+            //         todo!()
+            //         // command.parse_arg(arg);
+            //     }
+            // }
+            // "branch-fetch" => {
+            //     for arg in args {
+            //         health_and_version(&arg)?;
+            //         todo!()
+            //         // command.parse_arg(arg);
+            //     }
+            // }
             _ => return Err(ParseError::InvalidCommandName(command_name)),
         }
 
@@ -135,8 +197,8 @@ impl Cli {
 
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Patch {
-    commit: String,
-    custom_filename: Option<String>,
+    pub commit: String,
+    pub custom_filename: Option<String>,
 }
 
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -188,11 +250,19 @@ impl Subcommand {
 
 #[cfg(test)]
 mod tests {
+    use std::iter;
+
     use super::*;
 
+    #[track_caller]
     fn patchy(args: &[&str]) -> Result<Cli, ParseError> {
         dbg!(args);
-        Cli::parse(args.iter().map(ToString::to_string))
+        Cli::__parse(iter::once("patchy".to_owned()).chain(args.iter().map(ToString::to_string)))
+    }
+
+    #[test]
+    fn empty() {
+        assert_eq!(patchy(&[]), Err(ParseError::NoSubcommandSpecified));
     }
 
     #[test]
@@ -206,7 +276,7 @@ mod tests {
             })
         );
         assert_eq!(
-            patchy(&["init --help"]),
+            patchy(&["init", "--help"]),
             Ok(Cli {
                 subcommand: Some(Subcommand::Init),
                 help: true,
@@ -214,7 +284,23 @@ mod tests {
             })
         );
         assert_eq!(
-            patchy(&["init -h"]),
+            patchy(&["--version", "init"]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::Init),
+                help: false,
+                version: true
+            })
+        );
+        assert_eq!(
+            patchy(&["init", "--version"]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::Init),
+                help: false,
+                version: true
+            })
+        );
+        assert_eq!(
+            patchy(&["init", "-h"]),
             Ok(Cli {
                 subcommand: Some(Subcommand::Init),
                 help: true,
@@ -222,33 +308,18 @@ mod tests {
             })
         );
         assert_eq!(
-            patchy(&["-h init"]),
-            Ok(Cli {
-                subcommand: Some(Subcommand::Init),
-                help: true,
-                version: false
-            })
+            patchy(&["init", "--yes"]),
+            Err(ParseError::InvalidFlag(GlobalFlag::Yes))
         );
         assert_eq!(
-            patchy(&["--help init"]),
-            Ok(Cli {
-                subcommand: Some(Subcommand::Init),
-                help: true,
-                version: false
-            })
+            patchy(&["init", "hello"]),
+            Err(ParseError::InvalidArg("hello".to_owned()))
         );
     }
 
     #[test]
     fn no_command() {
-        assert_eq!(
-            patchy(&[]),
-            Ok(Cli {
-                subcommand: None,
-                help: false,
-                version: false
-            })
-        );
+        assert_eq!(patchy(&[]), Err(ParseError::NoSubcommandSpecified));
         assert_eq!(
             patchy(&["-h"]),
             Ok(Cli {
@@ -287,23 +358,44 @@ mod tests {
     fn no_command_mutually_exclusive_flag() {
         assert_eq!(
             patchy(&["-h", "--version"]),
-            Err(ParseError::MutuallyExclusive(
-                "--help".to_owned(),
-                "--version".to_owned()
+            Err(ParseError::MutuallyExclusiveFlags(
+                GlobalFlag::Help,
+                GlobalFlag::Version
             ))
         );
         assert_eq!(
             patchy(&["--help", "--version"]),
-            Err(ParseError::MutuallyExclusive(
-                "--help".to_owned(),
-                "--version".to_owned()
+            Err(ParseError::MutuallyExclusiveFlags(
+                GlobalFlag::Help,
+                GlobalFlag::Version
             ))
         );
         assert_eq!(
             patchy(&["-v", "--help"]),
-            Err(ParseError::MutuallyExclusive(
-                "--version".to_owned(),
-                "--help".to_owned()
+            Err(ParseError::MutuallyExclusiveFlags(
+                GlobalFlag::Version,
+                GlobalFlag::Help
+            ))
+        );
+        assert_eq!(
+            patchy(&["-v", "init", "-h"]),
+            Err(ParseError::MutuallyExclusiveFlags(
+                GlobalFlag::Version,
+                GlobalFlag::Help
+            ))
+        );
+        assert_eq!(
+            patchy(&["-v", "-h", "init", "-h"]),
+            Err(ParseError::MutuallyExclusiveFlags(
+                GlobalFlag::Version,
+                GlobalFlag::Help
+            ))
+        );
+        assert_eq!(
+            patchy(&["-v", "-h", "init", "-v"]),
+            Err(ParseError::MutuallyExclusiveFlags(
+                GlobalFlag::Version,
+                GlobalFlag::Help
             ))
         );
     }
@@ -312,11 +404,11 @@ mod tests {
     fn no_command_duplicate_flag() {
         assert_eq!(
             patchy(&["-h", "--help"]),
-            Err(ParseError::DuplicateFlag("--help".to_owned()))
+            Err(ParseError::DuplicateFlag(GlobalFlag::Help))
         );
         assert_eq!(
             patchy(&["-v", "--version"]),
-            Err(ParseError::DuplicateFlag("--help".to_owned()))
+            Err(ParseError::DuplicateFlag(GlobalFlag::Version))
         );
     }
 }
