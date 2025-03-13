@@ -60,7 +60,7 @@
 
     <Product
         Id='*'
-        Name='patchy-bin'
+        Name='patchy'
         UpgradeCode='5868B076-2779-431F-9B51-0B12B052711C'
         Manufacturer='Nikita Revenco'
         Language='1033'
@@ -83,11 +83,11 @@
             DowngradeErrorMessage='A newer version of [ProductName] is already installed. Setup will now exit.'/>
 
         <Media Id='1' Cabinet='media1.cab' EmbedCab='yes' DiskPrompt='CD-ROM #1'/>
-        <Property Id='DiskPrompt' Value='patchy-bin Installation'/>
+        <Property Id='DiskPrompt' Value='patchy Installation'/>
 
         <Directory Id='TARGETDIR' Name='SourceDir'>
             <Directory Id='$(var.PlatformProgramFilesFolder)' Name='PFiles'>
-                <Directory Id='APPLICATIONFOLDER' Name='patchy-bin'>
+                <Directory Id='APPLICATIONFOLDER' Name='patchy'>
                     
                     <!--
                       Enabling the license sidecar file in the installer is a four step process:
