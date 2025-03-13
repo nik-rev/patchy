@@ -231,6 +231,10 @@ indexmap = "2.7"
 once_cell = "1.17"
 strum = "0.27"
 strum_macros = "0.27"
+non-empty-string = "0.2"
+
+[dev-dependencies]
+pretty_assertions = "1.4"
 
 # The profile that 'dist' will build with
 [profile.dist]

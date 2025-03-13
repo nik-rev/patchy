@@ -6,6 +6,8 @@
 use core::{error, fmt};
 use std::{collections::HashSet, env, fmt::Display, str::FromStr};
 
+use non_empty_string::NonEmptyString;
+
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Cli {
     pub subcommand: Option<Subcommand>,
@@ -21,6 +23,11 @@ pub enum ParseError {
     InvalidCommandName(String),
     MutuallyExclusiveFlags(GlobalFlag, GlobalFlag),
     DuplicateFlag(GlobalFlag),
+    EmptyFilename,
+    FlagMustFollow(String, String),
+    UnknownFlag(String),
+    NoArguments,
+    Todo,
 }
 
 impl fmt::Display for ParseError {
@@ -34,6 +41,11 @@ impl fmt::Display for ParseError {
             Self::DuplicateFlag(flag) => write!(f, "{flag} can only be used once"),
             Self::InvalidFlag(flag) => write!(f, "Invalid flag: {flag}"),
             Self::InvalidArg(flag) => write!(f, "Invalid argument: {flag}"),
+            Self::EmptyFilename => todo!(),
+            Self::FlagMustFollow(arg, flag) => write!(f, "{flag} must follow {arg}"),
+            Self::UnknownFlag(flag) => write!(f, "Unknown flag: {flag}"),
+            Self::NoArguments => write!(f, "No arguments were supplied"),
+            Self::Todo => write!(f, "todo"),
         }
     }
 }
@@ -167,13 +179,49 @@ impl Cli {
                 }
                 cli.subcommand = Some(Subcommand::Run { yes });
             }
-            // "gen-patch" => {
-            //     let mut patches: Vec<Patch> = vec![];
-            //     for arg in args {
-            //         health_and_version(&arg)?;
-            //         let last = patches.last();
-            //     }
-            // }
+            "gen-patch" => {
+                let patches = args.try_fold(vec![], |mut patches: Vec<Patch>, arg| {
+                    if let Some(custom_filename) = arg
+                        .strip_prefix("-n=")
+                        .or_else(|| arg.strip_prefix("--patch-filename="))
+                    {
+                        if custom_filename.is_empty() {
+                            return Err(ParseError::EmptyFilename);
+                        }
+
+                        let Some(last_patch) = patches.last_mut() else {
+                            return Err(ParseError::FlagMustFollow(
+                                "commit".to_owned(),
+                                "--patch-filename=".to_owned(),
+                            ));
+                        };
+
+                        if last_patch.custom_filename.is_some() {
+                            // "--path-filename has been used before"
+                            return Err(ParseError::Todo);
+                        }
+
+                        last_patch.custom_filename = Some(custom_filename.to_owned());
+
+                        Ok(patches)
+                    } else if arg.starts_with('-') {
+                        Err(ParseError::UnknownFlag(arg))
+                    } else {
+                        patches.push(Patch {
+                            commit: arg,
+                            custom_filename: None,
+                        });
+
+                        Ok(patches)
+                    }
+                })?;
+
+                if patches.is_empty() {
+                    return Err(ParseError::NoArguments);
+                }
+
+                cli.subcommand = Some(Subcommand::GenPatch { patches });
+            }
             // "pr-fetch" => {
             //     for arg in args {
             //         health_and_version(&arg)?;
@@ -242,15 +290,10 @@ pub enum Subcommand {
     },
 }
 
-impl Subcommand {
-    pub fn parse_arg(&mut self, arg: String) {
-        todo!()
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use std::iter;
+    use core::iter;
+    use pretty_assertions::assert_eq;
 
     use super::*;
 
@@ -461,6 +504,118 @@ mod tests {
         assert_eq!(
             patchy(&["-v", "--version"]),
             Err(ParseError::DuplicateFlag(GlobalFlag::Version))
+        );
+    }
+
+    #[test]
+    fn gen_patch_no_arg() {
+        assert_eq!(patchy(&["gen-patch"]), Err(ParseError::NoArguments));
+    }
+
+    #[test]
+    fn gen_patch_extra_flag() {
+        assert_eq!(
+            patchy(&[
+                "gen-patch",
+                "133cbaae83f710b7",
+                "--patch-filename=hi",
+                "--patch-filename=bye"
+            ]),
+            Err(ParseError::Todo)
+        );
+    }
+
+    #[test]
+    fn gen_patch_multiple_flags() {
+        assert_eq!(
+            patchy(&[
+                "gen-patch",
+                "133cbaae83f710b793c98018cea697a04479bbe4",
+                "--patch-filename=some-patch",
+                "9ad5aa637ccf363b5d6713f66d0c2830736c35a9",
+                "--patch-filename=another-patch",
+                "cc75a895f344cf2fe83eaf6d78dfb7aeac8b33a4",
+            ]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::GenPatch {
+                    patches: vec![
+                        Patch {
+                            commit: "133cbaae83f710b793c98018cea697a04479bbe4".to_owned(),
+                            custom_filename: Some("some-patch".to_owned())
+                        },
+                        Patch {
+                            commit: "9ad5aa637ccf363b5d6713f66d0c2830736c35a9".to_owned(),
+                            custom_filename: Some("another-patch".to_owned())
+                        },
+                        Patch {
+                            commit: "cc75a895f344cf2fe83eaf6d78dfb7aeac8b33a4".to_owned(),
+                            custom_filename: None
+                        }
+                    ]
+                }),
+                help: false,
+                version: false
+            })
+        );
+    }
+
+    #[test]
+    fn gen_patch_1_arg() {
+        assert_eq!(
+            patchy(&["gen-patch", "133cbaae83f710b7", "--patch-filename="]),
+            Err(ParseError::EmptyFilename)
+        );
+        assert_eq!(
+            patchy(&[
+                "gen-patch",
+                "133cbaae83f710b7",
+                "--patch-filename=hello-world"
+            ]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::GenPatch {
+                    patches: vec![Patch {
+                        commit: "133cbaae83f710b7".to_owned(),
+                        custom_filename: Some("hello-world".to_owned())
+                    }]
+                }),
+                help: false,
+                version: false
+            })
+        );
+        assert_eq!(
+            patchy(&[
+                "gen-patch",
+                "133cbaae83f710b7",
+                "--patch-filename=hello-world",
+                "--help"
+            ]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::GenPatch {
+                    patches: vec![Patch {
+                        commit: "133cbaae83f710b7".to_owned(),
+                        custom_filename: Some("hello-world".to_owned())
+                    }]
+                }),
+                help: true,
+                version: false
+            })
+        );
+        assert_eq!(
+            patchy(&["gen-patch", "133cbaae83f710b7", "-n="]),
+            Err(ParseError::EmptyFilename)
+        );
+        assert_eq!(
+            patchy(&["gen-patch", "133cbaae83f710b7", "-n=helloworld"]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::GenPatch {
+                    patches: vec![Patch {
+                        commit: "133cbaae83f710b7".to_owned(),
+                        custom_filename: Some("helloworld".to_owned())
+                    }]
+                }),
+                help: false,
+                version: false
+            })
         );
     }
 }
