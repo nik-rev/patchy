@@ -1,4 +1,5 @@
 pub mod backup;
+pub mod cli;
 pub mod commands;
 pub mod flags;
 pub mod git_commands;

@@ -229,6 +229,8 @@ dialoguer = "0.11"
 futures = "0.3"
 indexmap = "2.7"
 once_cell = "1.17"
+strum = "0.27"
+strum_macros = "0.27"
 
 # The profile that 'dist' will build with
 [profile.dist]
