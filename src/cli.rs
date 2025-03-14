@@ -1,8 +1,12 @@
 //! Logic for parsing command line arguments
 //!
-//! Why not `clap`: Attempts were made to transition to `clap`, however `clap` lacks features and we would have to implement basically everything from scratch anyways.
+//! Why not `clap`: Attempts were made to transition to `clap`, however `clap`
+//! lacks features and we would have to implement basically everything from
+//! scratch anyways.
 //! - `clap` doesn't allow passing flags for every argument (positional flags)
-//! - `clap` offers less control over how the help output is shown than we'd like, which means we would have write that from scratch if we want a good help menu.
+//! - `clap` offers less control over how the help output is shown than we'd
+//!   like, which means we would have write that from scratch if we want a good
+//!   help menu.
 use core::{error, fmt};
 use std::env;
 
@@ -22,19 +26,24 @@ pub enum CliParseError {
 impl fmt::Display for CliParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CliParseError::UnexpectedFlag(_) => todo!(),
-            CliParseError::DuplicateFlag(_) => todo!(),
-            CliParseError::MutuallyExclusiveFlags => todo!(),
-            CliParseError::UnknownArgument(_) => todo!(),
-            CliParseError::EmptyArgument(_) => todo!(),
-            CliParseError::InvalidArgument(_) => todo!(),
-            CliParseError::UnknownFlag(_) => todo!(),
+            CliParseError::UnexpectedFlag(flag) => write!(f, "Unexpected flag: {flag}"),
+            CliParseError::DuplicateFlag(flag) => write!(f, "Cannot use {flag} more than once"),
+            CliParseError::MutuallyExclusiveFlags => write!(
+                f,
+                "Flags --help and --version are mutually exclusive, so they cannot be used \
+                 together."
+            ),
+            CliParseError::UnknownArgument(arg) => write!(f, "Unknown argument: {arg}"),
+            CliParseError::EmptyArgument(arg) => write!(f, "Empty argument: {arg}"),
+            CliParseError::InvalidArgument(arg) => write!(f, "Invalid argument: {arg}"),
+            CliParseError::UnknownFlag(flag) => write!(f, "Unknown flag: {flag}"),
         }
     }
 }
 
 impl error::Error for CliParseError {}
 
+/// These flags are only available when used in a specific command
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LocalFlag {
     Yes,
@@ -47,24 +56,15 @@ pub enum LocalFlag {
 impl LocalFlag {
     /// Returns `Ok(None)`: When the argument is not a flag
     fn parse(arg: &str) -> Result<Option<Self>, CliParseError> {
-        if arg == "-y" || arg == "--yes" {
+        if Flag::YES_FLAGS.contains(&arg) {
             Ok(Some(LocalFlag::Yes))
-        } else if arg == "-c" || arg == "--checkout" {
+        } else if Flag::CHECKOUT_FLAGS.contains(&arg) {
             Ok(Some(LocalFlag::Checkout))
-        } else if let Some(value) = arg
-            .strip_prefix("--patch-filename=")
-            .or_else(|| arg.strip_prefix("-n="))
-        {
+        } else if let Some(value) = Flag::extract_value_flag(Flag::PATCH_FILENAME_FLAGS, arg) {
             Ok(Some(LocalFlag::PatchFilename(value.to_owned())))
-        } else if let Some(value) = arg
-            .strip_prefix("--repo-name=")
-            .or_else(|| arg.strip_prefix("-r="))
-        {
+        } else if let Some(value) = Flag::extract_value_flag(Flag::REPO_NAME_FLAGS, arg) {
             Ok(Some(LocalFlag::RepoName(value.to_owned())))
-        } else if let Some(value) = arg
-            .strip_prefix("--branch-name=")
-            .or_else(|| arg.strip_prefix("-b="))
-        {
+        } else if let Some(value) = Flag::extract_value_flag(Flag::BRANCH_NAME_FLAGS, arg) {
             Ok(Some(LocalFlag::BranchName(value.to_owned())))
         } else if arg.starts_with('-') {
             Err(CliParseError::UnknownFlag(arg.to_owned()))
@@ -74,6 +74,19 @@ impl LocalFlag {
     }
 }
 
+impl fmt::Display for LocalFlag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LocalFlag::Yes => write!(f, "{}", Flag::YES_FLAGS[1]),
+            LocalFlag::Checkout => write!(f, "{}", Flag::CHECKOUT_FLAGS[1]),
+            LocalFlag::PatchFilename(name) => write!(f, "{}{name}", Flag::PATCH_FILENAME_FLAGS[1]),
+            LocalFlag::RepoName(name) => write!(f, "{}{name}", Flag::REPO_NAME_FLAGS[1]),
+            LocalFlag::BranchName(name) => write!(f, "{}{name}", Flag::BRANCH_NAME_FLAGS[1]),
+        }
+    }
+}
+
+/// These flags are available always
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum GlobalFlag {
     Help,
@@ -87,7 +100,7 @@ impl GlobalFlag {
     /// - `Ok(true)`: If flag was modified
     /// - `Ok(false)`: If flag wasn't modified, and no error was encountered
     pub fn detect(&mut self, arg: &str) -> Result<bool, CliParseError> {
-        if arg == "-h" || arg == "--help" {
+        if Flag::HELP_FLAGS.contains(&arg) {
             match self {
                 GlobalFlag::Version => Err(CliParseError::MutuallyExclusiveFlags),
                 GlobalFlag::Help => Err(CliParseError::DuplicateFlag(Flag::GlobalFlag(
@@ -96,9 +109,9 @@ impl GlobalFlag {
                 GlobalFlag::None => {
                     *self = GlobalFlag::Help;
                     Ok(true)
-                }
+                },
             }
-        } else if arg == "-v" || arg == "--version" {
+        } else if Flag::VERSION_FLAGS.contains(&arg) {
             match self {
                 GlobalFlag::Version => Err(CliParseError::DuplicateFlag(Flag::GlobalFlag(
                     GlobalFlag::Version,
@@ -107,10 +120,20 @@ impl GlobalFlag {
                 GlobalFlag::None => {
                     *self = Self::Version;
                     Ok(true)
-                }
+                },
             }
         } else {
             Ok(false)
+        }
+    }
+}
+
+impl fmt::Display for GlobalFlag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GlobalFlag::Help => write!(f, "{}", Flag::HELP_FLAGS[1]),
+            GlobalFlag::Version => write!(f, "{}", Flag::VERSION_FLAGS[1]),
+            GlobalFlag::None => write!(f, "<no flag>"),
         }
     }
 }
@@ -119,6 +142,51 @@ impl GlobalFlag {
 pub enum Flag {
     LocalFlag(LocalFlag),
     GlobalFlag(GlobalFlag),
+}
+
+impl Flag {
+    pub const YES_FLAGS: &[&str; 2] = &["-y", "--yes"];
+    pub const CHECKOUT_FLAGS: &[&str; 2] = &["-c", "--checkout"];
+    pub const PATCH_FILENAME_FLAGS: &[&str; 2] = &["-n=", "--patch-filename="];
+    pub const REPO_NAME_FLAGS: &[&str; 2] = &["-r=", "--repo-name="];
+    pub const BRANCH_NAME_FLAGS: &[&str; 2] = &["-b=", "--branch-name="];
+    pub const HELP_FLAGS: &[&str; 2] = &["-h", "--help"];
+    pub const VERSION_FLAGS: &[&str; 2] = &["-v", "--version"];
+
+    /// # Examples
+    ///
+    /// ```
+    /// use patchy::cli::Flag;
+    ///
+    /// assert_eq!(
+    ///     Flag::extract_value_flag(&["-m=", "--my-flag="], "-m=hello"),
+    ///     Some("hello")
+    /// );
+    /// assert_eq!(
+    ///     Flag::extract_value_flag(&["-m=", "--my-flag="], "--my-flag=hello"),
+    ///     Some("hello")
+    /// );
+    /// assert_eq!(
+    ///     Flag::extract_value_flag(&["-m=", "--my-flag="], "doesn't have"),
+    ///     None
+    /// );
+    /// ```
+    pub fn extract_value_flag<'a>(
+        flags: &'static [&'static str; 2],
+        arg: &'a str,
+    ) -> Option<&'a str> {
+        arg.strip_prefix(flags[0])
+            .or_else(|| arg.strip_prefix(flags[1]))
+    }
+}
+
+impl fmt::Display for Flag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Flag::LocalFlag(local_flag) => write!(f, "{local_flag}"),
+            Flag::GlobalFlag(global_flag) => write!(f, "{global_flag}"),
+        }
+    }
 }
 
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -205,7 +273,7 @@ impl Cli {
                             }));
                     }
                     cli.subcommand = Some(Subcommand::Init);
-                }
+                },
                 "run" => {
                     let mut yes = false;
                     for arg in args.by_ref() {
@@ -220,13 +288,13 @@ impl Cli {
                                     )));
                                 }
                                 yes = true;
-                            }
+                            },
                             Some(flag) => return Err(CliParseError::UnexpectedFlag(flag)),
                             None => return Err(CliParseError::InvalidArgument(arg)),
                         }
                     }
                     cli.subcommand = Some(Subcommand::Run { yes });
-                }
+                },
                 "gen-patch" => {
                     let mut patches: Vec<Patch> = vec![];
 
@@ -238,12 +306,13 @@ impl Cli {
                         match LocalFlag::parse(&arg)? {
                             Some(LocalFlag::PatchFilename(custom_filename)) => {
                                 let Some(patch) = patches.last_mut() else {
-                                    return Err(CliParseError::InvalidArgument(
-                                        "--patch-filename= must follow a commit hash".to_owned(),
-                                    ));
+                                    return Err(CliParseError::InvalidArgument(format!(
+                                        "{} must follow a commit hash",
+                                        LocalFlag::PatchFilename(custom_filename)
+                                    )));
                                 };
                                 patch.custom_filename = Some(custom_filename);
-                            }
+                            },
                             Some(flag) => return Err(CliParseError::UnexpectedFlag(flag)),
                             None => {
                                 // TODO: validate the commit hash that it is a valid commit hash
@@ -252,11 +321,11 @@ impl Cli {
                                     commit: arg,
                                     custom_filename: None,
                                 });
-                            }
+                            },
                         }
                     }
                     cli.subcommand = Some(Subcommand::GenPatch { patches });
-                }
+                },
                 "pr-fetch" => {
                     let mut prs: Vec<Pr> = vec![];
                     let mut checkout = false;
@@ -275,7 +344,7 @@ impl Cli {
                                     )));
                                 }
                                 checkout = true;
-                            }
+                            },
                             Some(LocalFlag::RepoName(custom_repo_name)) => {
                                 if repo_name.is_some() {
                                     return Err(CliParseError::DuplicateFlag(Flag::LocalFlag(
@@ -283,12 +352,13 @@ impl Cli {
                                     )));
                                 }
                                 repo_name = Some(custom_repo_name);
-                            }
+                            },
                             Some(LocalFlag::BranchName(custom_branch_name)) => {
                                 let Some(pr) = prs.last_mut() else {
-                                    return Err(CliParseError::InvalidArgument(
-                                        "--branch-name must follow a PR number".to_owned(),
-                                    ));
+                                    return Err(CliParseError::InvalidArgument(format!(
+                                        "{} must follow a PR number",
+                                        LocalFlag::BranchName(custom_branch_name)
+                                    )));
                                 };
                                 if pr.custom_branch_name.is_some() {
                                     return Err(CliParseError::DuplicateFlag(Flag::LocalFlag(
@@ -296,40 +366,38 @@ impl Cli {
                                     )));
                                 }
                                 pr.custom_branch_name = Some(custom_branch_name);
-                            }
+                            },
                             Some(flag) => return Err(CliParseError::UnexpectedFlag(flag)),
                             None => {
                                 // Parse PR number with optional commit
+                                let parse_pr = |pr: &str| {
+                                    pr.parse::<u32>().map_err(|_err| {
+                                        CliParseError::InvalidArgument(format!(
+                                            "{pr} is not a valid pull request number. Examples of \
+                                             valid pull request numbers:
+                                             - 41250
+                                             - 1455
+                                             - 10000"
+                                        ))
+                                    })
+                                };
                                 let (pr_number, commit) = match arg.split_once('@') {
                                     Some((pr_number, commit)) => {
                                         if commit.is_empty() {
                                             return Err(CliParseError::EmptyArgument(format!(
-                                                "commit is empty for {arg}"
+                                                "Commit cannot be empty for {arg}"
                                             )));
                                         };
-                                        let pr_number =
-                                            pr_number.parse::<u32>().map_err(|_err| {
-                                                CliParseError::InvalidArgument(format!(
-                                                    "{pr_number} is not a valid pull request number"
-                                                ))
-                                            })?;
-                                        (pr_number, Some(commit))
-                                    }
-                                    None => (
-                                        arg.parse::<u32>().map_err(|_err| {
-                                            CliParseError::InvalidArgument(format!(
-                                                "{arg} is not a valid pull request number"
-                                            ))
-                                        })?,
-                                        None,
-                                    ),
+                                        (parse_pr(pr_number)?, Some(commit))
+                                    },
+                                    None => (parse_pr(&arg)?, None),
                                 };
                                 prs.push(Pr {
                                     number: pr_number,
                                     commit: commit.map(ToOwned::to_owned),
                                     custom_branch_name: None,
                                 });
-                            }
+                            },
                         }
                     }
                     cli.subcommand = Some(Subcommand::PrFetch {
@@ -337,7 +405,7 @@ impl Cli {
                         repo_name,
                         prs,
                     });
-                }
+                },
                 "branch-fetch" => {
                     let mut branches: Vec<Branch> = vec![];
 
@@ -346,7 +414,8 @@ impl Cli {
                             continue;
                         };
 
-                        // Non-flag arguments for branch-fetch are always branch names with optional commits
+                        // Non-flag arguments for branch-fetch are always branch names with optional
+                        // commits
                         if LocalFlag::parse(&arg)?.is_none() {
                             let (branch_name, commit) = match arg.split_once('@') {
                                 Some((branch_name, commit)) => {
@@ -356,7 +425,7 @@ impl Cli {
                                         )));
                                     };
                                     (branch_name, Some(commit))
-                                }
+                                },
                                 None => (arg.as_str(), None),
                             };
 
@@ -370,10 +439,10 @@ impl Cli {
                         }
                     }
                     cli.subcommand = Some(Subcommand::BranchFetch { branches });
-                }
+                },
                 arg if arg.starts_with('-') => {
                     return Err(CliParseError::UnknownFlag(arg.to_owned()));
-                }
+                },
                 arg => return Err(CliParseError::UnknownArgument(arg.to_owned())),
             }
         }
@@ -385,6 +454,7 @@ impl Cli {
 #[cfg(test)]
 mod tests {
     use core::iter;
+
     use pretty_assertions::assert_eq;
 
     use super::*;

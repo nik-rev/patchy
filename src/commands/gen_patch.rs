@@ -4,8 +4,8 @@ use crate::CONFIG_ROOT;
 use crate::{
     commands::help,
     fail,
-    flags::{is_valid_flag, Flag},
-    git_commands::{is_valid_branch_name, GIT, GIT_ROOT},
+    flags::{Flag, is_valid_flag},
+    git_commands::{GIT, GIT_ROOT, is_valid_branch_name},
     success,
     types::CommandArgs,
     utils::normalize_commit_msg,

@@ -7,8 +7,8 @@ use std::{
 };
 use tempfile::tempfile;
 
-use crate::git_commands::GIT_ROOT;
 use crate::CONFIG_ROOT;
+use crate::git_commands::GIT_ROOT;
 
 pub fn files(config_files: ReadDir) -> anyhow::Result<Vec<(OsString, File, String)>> {
     let mut backups = Vec::new();
