@@ -112,8 +112,6 @@ impl_trait_in_params = "warn"
 map_err_ignore = "warn"
 # explicit imports
 alloc_instead_of_core = "warn"
-std_instead_of_alloc = "warn"
-std_instead_of_core = "warn"
 # may give the impression that we have more test coverage than what we have in reality
 cfg_not_test = "warn"
 # Rc::clone($expr) is way better than $expr.clone(), when we see `.clone()`

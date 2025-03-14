@@ -1,13 +1,13 @@
 use colored::Colorize as _;
 
 use crate::{
+    APP_NAME,
     commands::{
         gen_patch::GEN_PATCH_NAME_FLAG,
         pr_fetch::{PR_FETCH_BRANCH_NAME_FLAG, PR_FETCH_CHECKOUT_FLAG, PR_FETCH_REPO_NAME_FLAG},
         run::RUN_YES_FLAG,
     },
     flags::Flag,
-    APP_NAME,
 };
 
 fn format_subcommand(command: &str, description: &str) -> String {
@@ -233,7 +233,9 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
                 "--repo-name=helix-editor/helix".bright_magenta(),
                 "11745 10000 9191 600".bright_green(),
                 "--checkout".bright_magenta(),
-                format_description("Fetch several pull requests, checkout the first one and use a custom github repo: https://github.com/helix-editor/helix")
+                format_description(
+                    "Fetch several pull requests, checkout the first one and use a custom github repo: https://github.com/helix-editor/helix"
+                )
             );
 
             let example_5 = format!(

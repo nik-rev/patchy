@@ -5,8 +5,8 @@ use colored::Colorize as _;
 use crate::{
     commands::help,
     fail,
-    flags::{is_valid_flag, Flag},
-    git_commands::{fetch_branch, is_valid_branch_name, GIT},
+    flags::{Flag, is_valid_flag},
+    git_commands::{GIT, fetch_branch, is_valid_branch_name},
     success,
     types::CommandArgs,
 };

@@ -4,18 +4,18 @@ use anyhow::anyhow;
 use colored::Colorize as _;
 
 use crate::{
+    APP_NAME, CONFIG_FILE, CONFIG_ROOT, INDENT,
     backup::{files, restore},
     commands::{init, pr_fetch::ignore_octothorpe},
     confirm_prompt, fail,
     flags::Flag,
     git_commands::{
-        add_remote_branch, checkout_from_remote, clean_up_remote, fetch_pull_request,
-        merge_pull_request, GIT, GIT_ROOT,
+        GIT, GIT_ROOT, add_remote_branch, checkout_from_remote, clean_up_remote,
+        fetch_pull_request, merge_pull_request,
     },
     info, success, trace,
     types::{Branch, BranchAndRemote, CommandArgs, Configuration, Remote},
     utils::{display_link, with_uuid},
-    APP_NAME, CONFIG_FILE, CONFIG_ROOT, INDENT,
 };
 
 pub static RUN_YES_FLAG: Flag<'static> = Flag {

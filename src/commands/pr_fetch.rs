@@ -2,9 +2,9 @@ use std::process;
 
 use crate::commands::help;
 use crate::fail;
-use crate::flags::{is_valid_flag, Flag};
+use crate::flags::{Flag, is_valid_flag};
 use crate::git_commands::{
-    fetch_pull_request, is_valid_branch_name, GIT, GITHUB_REMOTE_PREFIX, GITHUB_REMOTE_SUFFIX,
+    GIT, GITHUB_REMOTE_PREFIX, GITHUB_REMOTE_SUFFIX, fetch_pull_request, is_valid_branch_name,
 };
 use crate::success;
 use crate::types::CommandArgs;
@@ -41,8 +41,7 @@ pub static PR_FETCH_CHECKOUT_FLAG: Flag<'static> = Flag {
 pub static PR_FETCH_REPO_NAME_FLAG: Flag<'static> = Flag {
     short: "-r=",
     long: "--repo-name=",
-    description:
-        "Choose a github repository, using the `origin` remote of the current repository by default",
+    description: "Choose a github repository, using the `origin` remote of the current repository by default",
 };
 
 pub static PR_FETCH_FLAGS: &[&Flag<'static>; 5] = &[

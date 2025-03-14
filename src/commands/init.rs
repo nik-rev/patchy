@@ -6,8 +6,8 @@ use std::{
 use colored::Colorize as _;
 
 use crate::{
-    confirm_prompt, git_commands::GIT_ROOT, success, types::CommandArgs, CONFIG_FILE, CONFIG_ROOT,
-    INDENT,
+    CONFIG_FILE, CONFIG_ROOT, INDENT, confirm_prompt, git_commands::GIT_ROOT, success,
+    types::CommandArgs,
 };
 
 pub fn init(_args: &CommandArgs) -> anyhow::Result<()> {

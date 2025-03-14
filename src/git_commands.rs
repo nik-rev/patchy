@@ -6,7 +6,7 @@ use std::{
     process::{self, Output},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use once_cell::sync::Lazy;
 use reqwest::Client;
 
@@ -89,8 +89,7 @@ pub fn add_remote_branch(info: &BranchAndRemote, commit_hash: Option<&str>) -> a
 
     trace!(
         "Added remote {} for repository {}",
-        &info.remote.repository_url,
-        &info.remote.local_remote_alias
+        &info.remote.repository_url, &info.remote.local_remote_alias
     );
 
     if let Err(err) = GIT(&[
