@@ -17,6 +17,9 @@ pedantic = { priority = -1, level = "warn" }
 nursery = { priority = -1, level = "warn" }
 cargo = { priority = -1, level = "warn" }
 
+# Rust Analyzer's "fill match arms" code action is bugged and will not use "Self",
+# so temporarily turn it off until that issue gets resolved
+use_self = "allow"
 # sometimes it can be more readable not to inline format!() args
 uninlined_format_args = "allow"
 # we don't want to mark everything with #[must_use]
@@ -130,73 +133,8 @@ rest_pat_in_fully_bound_structs = "warn"
 same_name_method = "warn"
 # more explicit and avoids polluting the scope
 unused_trait_names = "warn"
-absolute_paths = "warn"
 deref_by_slicing = "warn"
 verbose_file_reads = "warn"
-
-# == enable these before pushing a new release ==
-# dbg_macro = "deny"
-# todo = "warn"
-# unimplemented = "warn"
-# use_debug = "warn"
-
-# == not enabled ==
-# disallowed_script_idents = "allow"
-# big_endian_bytes = "allow"
-# default_numeric_fallback = "allow"
-# empty_drop = "allow"
-# exhaustive_enums = "allow"
-# exhaustive_structs = "allow"
-# exit = "allow"
-# field_scoped_visibility_modifiers = "allow"
-# float_arithmetic = "allow"
-# float_cmp_const = "allow"
-# host_endian_bytes = "allow"
-# implicit_return = "allow"
-# indexing_slicing = "allow"
-# inline_asm_x86_intel_syntax = "allow"
-# integer_division_remainder_used = "allow"
-# iter_over_hash_type = "allow"
-# large_include_file = "allow"
-# let_underscore_must_use = "allow"
-# let_underscore_untyped = "allow"
-# little_endian_bytes = "allow"
-# min_ident_chars = "allow"
-# missing_docs_in_private_items = "allow"
-# missing_inline_in_public_items = "allow"
-# missing_trait_methods = "allow"
-# mod_module_files = "allow"
-# module_name_repetitions = "allow"
-# modulo_arithmetic = "allow"
-# panic = "allow"
-# non_ascii_literal = "allow"
-# panic_in_result_fn = "allow"
-# partial_pub_fields = "allow"
-# print_stderr = "allow"
-# print_stdout = "allow"
-# expect_used = "allow"
-# pub_use = "allow"
-# # we prefer using the shorthand
-# pub_with_shorthand = "allow"
-# question_mark_used = "allow"
-# ref_patterns = "allow"
-# # we prefer outside of the block instead
-# semicolon_inside_block = "allow"
-# shadow_reuse = "allow"
-# shadow_same = "allow"
-# # We like to separate literal suffixes by an underscore
-# separated_literal_suffix = "allow"
-# single_char_lifetime_names = "allow"
-# single_call_fn = "allow"
-# string_add = "allow"
-# string_slice = "allow"
-# unreachable = "allow"
-# suspicious_xor_used_as_pow = "allow"
-# unused_result_ok = "allow"
-# unwrap_in_result = "allow"
-# unwrap_used = "allow"
-# shadow_unrelated = "allow"
-# pattern_type_mismatch = "allow"
 
 [[bin]]
 name = "patchy"
