@@ -1,20 +1,12 @@
 use std::fs;
 
-use super::help::{HELP_FLAG, VERSION_FLAG};
 use crate::cli::gen_patch::{GenPatch, Patch};
-use crate::flags::Flag;
 use crate::git_commands::{GIT, GIT_ROOT};
 use crate::utils::normalize_commit_msg;
 use crate::{CONFIG_ROOT, fail, success};
 
-pub static GEN_PATCH_NAME_FLAG: Flag<'static> = Flag {
-    short: "-n=",
-    long: "--patch-filename=",
-    description: "Choose filename for the patch",
-};
-
-pub static GEN_PATCH_FLAGS: &[&Flag<'static>; 3] =
-    &[&GEN_PATCH_NAME_FLAG, &HELP_FLAG, &VERSION_FLAG];
+// pub static GEN_PATCH_FLAGS: &[&Flag<'static>; 3] =
+//     &[&GEN_PATCH_NAME_FLAG, &HELP_FLAG, &VERSION_FLAG];
 
 pub fn gen_patch(args: GenPatch) -> anyhow::Result<()> {
     let config_path = GIT_ROOT.join(CONFIG_ROOT);

@@ -1,7 +1,7 @@
 use core::{error, fmt};
 use std::env;
 
-use flags::{Flag, HelpOrVersion, LocalFlag};
+use flags::{CliFlag, Flag, HelpOrVersion, LocalFlag};
 
 pub mod branch_fetch;
 pub mod flags;
@@ -77,7 +77,10 @@ pub enum Subcommand {
     BranchFetch(branch_fetch::BranchFetch),
 }
 
-trait SubCommand {
+pub trait SubCommand {
+    /// The name of the subcommand, how it is displayed and invoked
+    const NAME: &str;
+
     /// Once we know where the subcommand starts, hand off the parsing to a
     /// helper struct
     fn parse<I: Iterator<Item = String>>(
@@ -95,6 +98,24 @@ pub struct Cli {
 }
 
 impl Cli {
+    pub const HELP_FLAG: CliFlag<'static> = CliFlag {
+        short: "-h",
+        long: "--help",
+        description: "Print this message",
+    };
+
+    pub const VERBOSE_FLAG: CliFlag<'static> = CliFlag {
+        short: "-V",
+        long: "--verbose",
+        description: "Increased logging information",
+    };
+
+    pub const VERSION_FLAG: CliFlag<'static> = CliFlag {
+        short: "-v",
+        long: "--version",
+        description: "Get patchy version",
+    };
+
     /// Parse the command line arguments passed to Patchy
     pub fn parse() -> Result<Self, CliParseError> {
         Self::__parse(env::args())

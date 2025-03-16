@@ -1,27 +1,13 @@
 use colored::Colorize as _;
+use documented::Documented as _;
 
 use crate::APP_NAME;
-use crate::cli::Subcommand;
-use crate::commands::gen_patch::GEN_PATCH_NAME_FLAG;
-use crate::commands::pr_fetch::{
-    PR_FETCH_BRANCH_NAME_FLAG, PR_FETCH_CHECKOUT_FLAG, PR_FETCH_REPO_NAME_FLAG,
-};
-use crate::commands::run::RUN_YES_FLAG;
-use crate::flags::Flag;
-
-#[expect(unused_variables, reason = "TODO")]
-pub fn print_help(subcommand: Option<Subcommand>) -> String {
-    subcommand.map_or_else(
-        || todo!(),
-        |subcommand| match subcommand {
-            Subcommand::Init(init) => todo!(),
-            Subcommand::Run(run) => todo!(),
-            Subcommand::GenPatch(gen_patch) => todo!(),
-            Subcommand::PrFetch(pr_fetch) => todo!(),
-            Subcommand::BranchFetch(branch_fetch) => todo!(),
-        },
-    )
-}
+use crate::cli::branch_fetch::BranchFetch;
+use crate::cli::gen_patch::GenPatch;
+use crate::cli::init::Init;
+use crate::cli::pr_fetch::PrFetch;
+use crate::cli::run::Run;
+use crate::cli::{Cli, SubCommand as _, Subcommand};
 
 fn format_subcommand(command: &str, description: &str) -> String {
     let command = command.bright_yellow();
@@ -32,25 +18,7 @@ pub fn format_description(description: &str) -> String {
     format!("{} {description}", "»".bright_black())
 }
 
-pub static HELP_FLAG: Flag<'static> = Flag {
-    short: "-h",
-    long: "--help",
-    description: "Print this message",
-};
-
-pub static VERBOSE_FLAG: Flag<'static> = Flag {
-    short: "-V",
-    long: "--verbose",
-    description: "Increased logging information",
-};
-
-pub static VERSION_FLAG: Flag<'static> = Flag {
-    short: "-v",
-    long: "--version",
-    description: "Get patchy version",
-};
-
-pub fn help(command: Option<&str>) -> anyhow::Result<()> {
+pub fn help(subcommand: Option<Subcommand>) -> String {
     let author = "Nikita Revenco ".italic();
     let less_than = "<".bright_black().italic();
     let email = "pm@nikrev.com".italic();
@@ -60,246 +28,31 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
     let command_str = "<command>".bright_yellow();
     let args = "[<args>]".bright_green();
     let version = env!("CARGO_PKG_VERSION");
-    let init = format_subcommand("init", "Create example config file");
-    let pr_fetch = format_subcommand(
-        "pr-fetch",
-        "Fetch pull request for a GitHub repository as a local branch",
+
+    let help_and_version = format!(
+        "    {}
+
+    {}",
+        Cli::HELP_FLAG,
+        Cli::VERSION_FLAG,
     );
-    let branch_fetch = format_subcommand(
-        "branch-fetch",
-        "Fetch branches for a GitHub repository as a local branch",
-    );
-    let gen_patch = format_subcommand("gen-patch", "Generate a .patch file from commit hashes");
-    let run = format_subcommand("run", &format!("Start {APP_NAME}"));
+
     let header = format!(
         "  {app_name} {version}
   {author}{less_than}{email}{greater_than}"
     );
-    match command {
-        Some(cmd_name @ "init") => {
-            let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
 
-            let description = format_description("Create example config file");
+    subcommand.map_or_else(
+        // no specific subcommand supplied
+        || {
+            // main help menu
+            let init = format_subcommand(Init::NAME, Init::DOCS);
+            let run = format_subcommand(Run::NAME, Run::DOCS);
+            let gen_patch = format_subcommand(GenPatch::NAME, GenPatch::DOCS);
+            let pr_fetch = format_subcommand(PrFetch::NAME, PrFetch::DOCS);
+            let branch_fetch = format_subcommand(BranchFetch::NAME, BranchFetch::DOCS);
 
-            println!(
-                "
-{header}
-        
-  Usage:
-
-    {this_command_name}
-    {description}
-
-  Flags:
-
-    {HELP_FLAG}
-",
-            );
-        },
-        Some(cmd_name @ "run") => {
-            let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
-
-            let description = format_description("Create example config file");
-
-            println!(
-                "
-{header}
-        
-  Usage:
-
-    {this_command_name}
-    {description}
-
-  Flags:
-
-    {HELP_FLAG}
-
-    {RUN_YES_FLAG}
-",
-            );
-        },
-        Some(cmd_name @ "gen-patch") => {
-            let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
-
-            let description = format_description("Generate a .patch file from commit hashes");
-
-            let example_1 = format!(
-                "{}
-    {}",
-                "133cbaae83f710b793c98018cea697a04479bbe4".bright_green(),
-                format_description("Generate a single .patch file from one commit hash")
-            );
-
-            let example_2 = format!(
-                "{}
-    {}",
-                "133cbaae83f710b793c98018cea697a04479bbe4 \
-                 9ad5aa637ccf363b5d6713f66d0c2830736c35a9 cc75a895f344cf2fe83eaf6d78dfb7aeac8b33a4"
-                    .bright_green(),
-                format_description("Generate several .patch files from several commit hashes")
-            );
-
-            let example_3 = format!(
-                "{} {} {} {} {}
-    {}",
-                "133cbaae83f710b793c98018cea697a04479bbe4".bright_green(),
-                "--patch-filename=some-patch".bright_magenta(),
-                "9ad5aa637ccf363b5d6713f66d0c2830736c35a9".bright_green(),
-                "--patch-filename=another-patch".bright_magenta(),
-                "cc75a895f344cf2fe83eaf6d78dfb7aeac8b33a4".bright_green(),
-                format_description(
-                    "Generate several .patch files from several commit hashes and give 2 of them \
-                     custom names"
-                )
-            );
-
-            println!(
-                "
-{header}
-        
-  Usage:
-
-    {this_command_name}
-    {description}
-
-  Examples:
-
-    {this_command_name} {example_1}
-
-    {this_command_name} {example_2}
-
-    {this_command_name} {example_3}
-
-  Flags:
-
-    {GEN_PATCH_NAME_FLAG}
-
-    {HELP_FLAG}
-",
-            );
-        },
-        Some(cmd_name @ "branch-fetch") => {
-            let description = format_description("Fetch remote branches into a local branch");
-
-            let example_1 = format!(
-                "{}
-    {}",
-                "helix-editor/helix/master".bright_green(),
-                format_description("Fetch a single branch")
-            );
-            let example_2 = format!(
-                "{}
-    {}",
-                "'helix-editor/helix/master@6049f20'".bright_green(),
-                format_description("Fetch a single branch at a certain commit")
-            );
-
-            let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
-
-            println!(
-                "
-{header}
-        
-  Usage:
-
-    {this_command_name} {args} {flags_label}
-    {description}
-
-  Examples:
-
-    {this_command_name} {example_1}
-
-    {this_command_name} {example_2}
-",
-            );
-        },
-        Some(cmd_name @ "pr-fetch") => {
-            let description = format_description("Fetch pull requests into a local branch");
-
-            let example_1 = format!(
-                "{}
-    {}",
-                "11745".bright_green(),
-                format_description("Fetch a single pull request")
-            );
-
-            let example_2 = format!(
-                "{}
-    {}",
-                "11745 10000 9191 600".bright_green(),
-                format_description("Fetch several pull requests")
-            );
-
-            let example_3 = format!(
-                "{} {} {} {} {}
-    {}",
-                "11745 10000".bright_green(),
-                "--branch-name=some-pr".bright_magenta(),
-                "9191".bright_green(),
-                "--branch-name=another-pr".bright_magenta(),
-                "600".bright_green(),
-                format_description(
-                    "Fetch several pull requests and choose custom branch names for the pull \
-                     requests #10000 and #9191"
-                )
-            );
-
-            let example_4 = format!(
-                "{} {} {}
-    {}",
-                "--repo-name=helix-editor/helix".bright_magenta(),
-                "11745 10000 9191 600".bright_green(),
-                "--checkout".bright_magenta(),
-                format_description(
-                    "Fetch several pull requests, checkout the first one and use a custom github repo: https://github.com/helix-editor/helix"
-                )
-            );
-
-            let example_5 = format!(
-                "{}
-    {}",
-                "11745 10000@be8f264327f6ae729a0b372ef01f6fde49a78310 9191 \
-                 600@5d10fa5beb917a0dbe0ef8441d14b3d0dd15227b"
-                    .bright_green(),
-                format_description("Fetch several pull requests at a certain commit")
-            );
-            let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
-
-            println!(
-                "
-{header}
-        
-  Usage:
-
-    {this_command_name} {args} {flags_label}
-    {description}
-
-  Examples:
-
-    {this_command_name} {example_1}
-
-    {this_command_name} {example_2}
-
-    {this_command_name} {example_3}
-
-    {this_command_name} {example_4}
-
-    {this_command_name} {example_5}
-
-  Flags:
-
-    {PR_FETCH_BRANCH_NAME_FLAG}
-
-    {PR_FETCH_CHECKOUT_FLAG}
-
-    {PR_FETCH_REPO_NAME_FLAG}
-
-    {HELP_FLAG}
-",
-            );
-        },
-        _ => {
-            println!(
+            format!(
                 "
 {header}
         
@@ -321,13 +74,250 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
 
   Flags:
 
-    {HELP_FLAG}
+{help_and_version}
 
-    {VERSION_FLAG}
 "
-            );
+            )
         },
-    }
+        |subcommand| match subcommand {
+            Subcommand::Init(_) => {
+                let cmd_name = Init::NAME;
+                let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
+                let description = format_description(Init::DOCS);
 
-    Ok(())
+                format!(
+                    "
+{header}
+        
+  Usage:
+
+    {this_command_name}
+    {description}
+
+  Flags:
+
+{help_and_version}
+
+"
+                )
+            },
+            Subcommand::Run(_) => {
+                let cmd_name = Run::NAME;
+                let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
+                let description = format_description(Run::DOCS);
+                let yes_flag = Run::YES_FLAG;
+
+                format!(
+                    "
+{header}
+        
+  Usage:
+
+    {this_command_name}
+    {description}
+
+  Flags:
+
+{help_and_version}
+
+    {yes_flag}
+"
+                )
+            },
+            Subcommand::GenPatch(_) => {
+                let cmd_name = GenPatch::NAME;
+                let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
+                let description = format_description(GenPatch::DOCS);
+                let patch_name_flag = GenPatch::PATCH_NAME_FLAG;
+
+                let example_1 = format!(
+                    "{}
+    {}",
+                    "133cbaae83f710b793c98018cea697a04479bbe4".bright_green(),
+                    format_description("Generate a single .patch file from one commit hash")
+                );
+
+                let example_2 = format!(
+                    "{}
+    {}",
+                    "133cbaae83f710b793c98018cea697a04479bbe4 \
+                     9ad5aa637ccf363b5d6713f66d0c2830736c35a9 cc75a895f344cf2fe83eaf6d78dfb7aeac8b33a4"
+                        .bright_green(),
+                    format_description("Generate several .patch files from several commit hashes")
+                );
+
+                let example_3 = format!(
+                    "{} {} {} {} {}
+    {}",
+                    "133cbaae83f710b793c98018cea697a04479bbe4".bright_green(),
+                    "--patch-filename=some-patch".bright_magenta(),
+                    "9ad5aa637ccf363b5d6713f66d0c2830736c35a9".bright_green(),
+                    "--patch-filename=another-patch".bright_magenta(),
+                    "cc75a895f344cf2fe83eaf6d78dfb7aeac8b33a4".bright_green(),
+                    format_description(
+                        "Generate several .patch files from several commit hashes and give 2 of them \
+                         custom names"
+                    )
+                );
+
+                format!(
+                    "
+{header}
+        
+  Usage:
+
+    {this_command_name}
+    {description}
+
+  Examples:
+
+    {this_command_name} {example_1}
+
+    {this_command_name} {example_2}
+
+    {this_command_name} {example_3}
+
+  Flags:
+
+    {patch_name_flag}
+
+{help_and_version}
+"
+                )
+            },
+            Subcommand::PrFetch(_) => {
+                let cmd_name = PrFetch::NAME;
+                let description = format_description(PrFetch::DOCS);
+
+                let example_1 = format!(
+                    "{}
+    {}",
+                    "11745".bright_green(),
+                    format_description("Fetch a single pull request")
+                );
+
+                let example_2 = format!(
+                    "{}
+    {}",
+                    "11745 10000 9191 600".bright_green(),
+                    format_description("Fetch several pull requests")
+                );
+
+                let example_3 = format!(
+                    "{} {} {} {} {}
+    {}",
+                    "11745 10000".bright_green(),
+                    "--branch-name=some-pr".bright_magenta(),
+                    "9191".bright_green(),
+                    "--branch-name=another-pr".bright_magenta(),
+                    "600".bright_green(),
+                    format_description(
+                        "Fetch several pull requests and choose custom branch names for the pull \
+                         requests #10000 and #9191"
+                    )
+                );
+
+                let example_4 = format!(
+                    "{} {} {}
+    {}",
+                    "--repo-name=helix-editor/helix".bright_magenta(),
+                    "11745 10000 9191 600".bright_green(),
+                    "--checkout".bright_magenta(),
+                    format_description(
+                        "Fetch several pull requests, checkout the first one and use a custom github repo: https://github.com/helix-editor/helix"
+                    )
+                );
+
+                let example_5 = format!(
+                    "{}
+    {}",
+                    "11745 10000@be8f264327f6ae729a0b372ef01f6fde49a78310 9191 \
+                     600@5d10fa5beb917a0dbe0ef8441d14b3d0dd15227b"
+                        .bright_green(),
+                    format_description("Fetch several pull requests at a certain commit")
+                );
+                let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
+
+                let branch_name_flag = PrFetch::BRANCH_NAME_FLAG;
+    
+                let checkout_flag = PrFetch::CHECKOUT_FLAG;
+    
+                let repo_name_flag = PrFetch::REPO_NAME_FLAG;
+                
+
+                format!(
+                    "
+{header}
+        
+  Usage:
+
+    {this_command_name} {args} {flags_label}
+    {description}
+
+  Examples:
+
+    {this_command_name} {example_1}
+
+    {this_command_name} {example_2}
+
+    {this_command_name} {example_3}
+
+    {this_command_name} {example_4}
+
+    {this_command_name} {example_5}
+
+  Flags:
+
+    {branch_name_flag}
+
+    {checkout_flag}
+
+    {repo_name_flag}
+
+{help_and_version}
+"
+                )
+            },
+            Subcommand::BranchFetch(_) => {
+                let cmd_name = BranchFetch::NAME;
+                let description = format_description("Fetch remote branches into a local branch");
+
+                let example_1 = format!(
+                    "{}
+    {}",
+                    "helix-editor/helix/master".bright_green(),
+                    format_description("Fetch a single branch")
+                );
+                let example_2 = format!(
+                    "{}
+    {}",
+                    "'helix-editor/helix/master@6049f20'".bright_green(),
+                    format_description("Fetch a single branch at a certain commit")
+                );
+
+                let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
+
+                format!(
+                    "
+{header}
+        
+  Usage:
+
+    {this_command_name} {args} {flags_label}
+    {description}
+
+  Examples:
+
+    {this_command_name} {example_1}
+
+    {this_command_name} {example_2}
+
+  Flags:
+
+{help_and_version}
+"
+                )
+            },
+        },
+    )
 }

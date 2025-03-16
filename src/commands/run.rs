@@ -6,7 +6,6 @@ use colored::Colorize as _;
 use crate::backup::{files, restore};
 use crate::cli::run::Run;
 use crate::commands::pr_fetch::ignore_octothorpe;
-use crate::flags::Flag;
 use crate::git_commands::{
     GIT, GIT_ROOT, add_remote_branch, checkout_from_remote, clean_up_remote, fetch_pull_request,
     merge_pull_request,
@@ -16,12 +15,6 @@ use crate::utils::{display_link, with_uuid};
 use crate::{
     APP_NAME, CONFIG_FILE, CONFIG_ROOT, INDENT, commands, confirm_prompt, fail, info, success,
     trace,
-};
-
-pub static RUN_YES_FLAG: Flag<'static> = Flag {
-    short: "-y",
-    long: "--yes",
-    description: "Do not prompt when overwriting local-branch specified in the config",
 };
 
 /// Parses user inputs of the form `<head><syntax><commit-hash>`

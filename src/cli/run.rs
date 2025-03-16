@@ -1,5 +1,6 @@
 use documented::{Documented, DocumentedFields};
 
+use super::flags::CliFlag;
 use super::{CliParseError, Flag, HelpOrVersion, LocalFlag, SubCommand};
 
 /// Start patchy
@@ -9,7 +10,17 @@ pub struct Run {
     pub yes: bool,
 }
 
+impl Run {
+    pub const YES_FLAG: CliFlag<'static> = CliFlag {
+        short: "-y",
+        long: "--yes",
+        description: "Do not prompt when overwriting local-branch specified in the config",
+    };
+}
+
 impl SubCommand for Run {
+    const NAME: &str = "run";
+
     fn parse<I: Iterator<Item = String>>(
         args: &mut I,
         global_flag: &mut HelpOrVersion,

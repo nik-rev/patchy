@@ -1,5 +1,6 @@
 use documented::{Documented, DocumentedFields};
 
+use super::flags::CliFlag;
 use super::{CliParseError, HelpOrVersion, LocalFlag, SubCommand};
 
 /// A branch
@@ -16,13 +17,29 @@ pub struct Branch {
 }
 
 /// Fetch branches for a GitHub repository as a local branch
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Documented, DocumentedFields)]
 pub struct BranchFetch {
     /// A list of branches to fetch
     pub branches: Vec<Branch>,
 }
 
+impl BranchFetch {
+    pub const CHECKOUT_FLAG: CliFlag<'static> = CliFlag {
+        short: "-c",
+        long: "--checkout",
+        description: "Check out the first fetched branch",
+    };
+
+    pub const BRANCH_NAME_FLAG: CliFlag<'static> = CliFlag {
+        short: "-b=",
+        long: "--branch-name=",
+        description: "Choose local name for the branch belonging to the preceding pull request",
+    };
+}
+
 impl SubCommand for BranchFetch {
+    const NAME: &str = "branch-fetch";
+
     fn parse<I: Iterator<Item = String>>(
         args: &mut I,
         global_flag: &mut HelpOrVersion,

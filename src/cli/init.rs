@@ -7,6 +7,8 @@ use super::{CliParseError, HelpOrVersion, LocalFlag, SubCommand};
 pub struct Init;
 
 impl SubCommand for Init {
+    const NAME: &str = "init";
+
     fn parse<I: Iterator<Item = String>>(
         args: &mut I,
         global_flag: &mut HelpOrVersion,

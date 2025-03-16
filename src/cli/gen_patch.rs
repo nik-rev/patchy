@@ -1,5 +1,6 @@
 use documented::{Documented, DocumentedFields};
 
+use super::flags::CliFlag;
 use super::{CliParseError, HelpOrVersion, LocalFlag, SubCommand};
 
 /// A structure representing information needed to create a .patch file
@@ -18,7 +19,17 @@ pub struct GenPatch {
     pub patches: Vec<Patch>,
 }
 
+impl GenPatch {
+    pub const PATCH_NAME_FLAG: CliFlag<'static> = CliFlag {
+        short: "-n=",
+        long: "--patch-filename=",
+        description: "Choose filename for the patch",
+    };
+}
+
 impl SubCommand for GenPatch {
+    const NAME: &str = "gen-patch";
+
     fn parse<I: Iterator<Item = String>>(
         args: &mut I,
         global_flag: &mut HelpOrVersion,
