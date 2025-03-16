@@ -12,10 +12,7 @@ use crate::git_commands::{
 };
 use crate::types::{Branch, BranchAndRemote, Configuration, Remote};
 use crate::utils::{display_link, with_uuid};
-use crate::{
-    APP_NAME, CONFIG_FILE, CONFIG_ROOT, INDENT, commands, confirm_prompt, fail, info, success,
-    trace,
-};
+use crate::{APP_NAME, CONFIG_FILE, CONFIG_ROOT, commands, confirm_prompt, fail, success};
 
 /// Parses user inputs of the form `<head><syntax><commit-hash>`
 ///
@@ -76,7 +73,7 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
         process::exit(0);
     };
 
-    trace!("Using configuration file {config_file_path:?}");
+    log::trace!("Using configuration file {config_file_path:?}");
 
     let config = toml::from_str::<Configuration>(&config_raw).map_err(|err| {
         anyhow!("Could not parse `{CONFIG_ROOT}/{CONFIG_FILE}` configuration file:\n{err}")
@@ -124,7 +121,7 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
     )?;
 
     if config.pull_requests.is_empty() {
-        info!(
+        log::info!(
             "You haven't specified any pull requests to fetch in your config, {}",
             display_link(
                 "see the instructions on how to configure patchy.",
@@ -264,22 +261,21 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
             &config.local_branch,
         ])?;
         if args.yes {
-            info!(
+            log::info!(
                 "Overwrote branch {} since you supplied the {} flag",
                 config.local_branch.cyan(),
                 "--yes".bright_magenta()
             );
         }
-        println!("\n{INDENT}{}", "  Success!\n".bright_green().bold());
+        println!("\n  {}", "  Success!\n".bright_green().bold());
     } else {
         let command = format!(
             "  git branch --move --force {temporary_branch} {}",
             config.local_branch
         );
-        let command = format!("\n{INDENT}{}\n", command.bright_magenta());
+        let command = format!("\n  {}\n", command.bright_magenta());
         println!(
-            "\n{INDENT}  You can still manually overwrite {} with the following command:\n  \
-             {command}",
+            "\n    You can still manually overwrite {} with the following command:\n  {command}",
             config.local_branch.cyan(),
         );
         process::exit(1)

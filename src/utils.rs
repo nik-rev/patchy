@@ -64,8 +64,7 @@ pub async fn make_request(url: &str) -> anyhow::Result<String> {
 #[macro_export]
 macro_rules! success {
     ($($arg:tt)*) => {{
-        println!("{}{}{}",
-            $crate::INDENT,
+        println!("  {}{}",
             colored::Colorize::bold(colored::Colorize::bright_green("✓ ")),
             format!($($arg)*))
     }};
@@ -74,34 +73,33 @@ macro_rules! success {
 #[macro_export]
 macro_rules! fail {
     ($($arg:tt)*) => {{
-        eprintln!("{}{}{}",
-            $crate::INDENT,
+        eprintln!("  {}{}",
             colored::Colorize::bold(colored::Colorize::bright_red("✗ ")),
             format!($($arg)*))
     }};
 }
 
-#[macro_export]
-macro_rules! trace {
-    ($($arg:tt)*) => {{
-        if *$crate::flags::IS_VERBOSE {
-            eprintln!("{}{}{}",
-                $crate::INDENT,
-                colored::Colorize::bold(colored::Colorize::bright_yellow("--verbose: ")),
-                format!($($arg)*))
-        }
-    }};
-}
+// #[macro_export]
+// macro_rules! trace {
+//     ($($arg:tt)*) => {{
+//         if *$crate::flags::IS_VERBOSE {
+//             eprintln!("  {}{}",
+//                 
+// colored::Colorize::bold(colored::Colorize::bright_yellow("--verbose: ")),
+//                 format!($($arg)*))
+//         }
+//     }};
+// }
 
-#[macro_export]
-macro_rules! info {
-    ($($arg:tt)*) => {{
-        eprintln!("{}{}{}",
-            $crate::INDENT,
-            colored::Colorize::bright_blue(colored::Colorize::bold("i ")),
-            format!($($arg)*))
-    }};
-}
+// #[macro_export]
+// macro_rules! info {
+//     ($($arg:tt)*) => {{
+//         eprintln!("{}{}{}",
+//             $crate::INDENT,
+//             colored::Colorize::bright_blue(colored::Colorize::bold("i ")),
+//             format!($($arg)*))
+//     }};
+// }
 
 /// Interact with the user to get a yes or a no answer
 #[macro_export]
@@ -109,7 +107,7 @@ macro_rules! confirm_prompt {
     ($($arg:tt)*) => {{
         dialoguer::Confirm::new()
             .with_prompt(format!(
-                "\n{INDENT}{} {}",
+                "\n  {} {}",
                 "»".bright_black(),
                 format!($($arg)*)
             ))

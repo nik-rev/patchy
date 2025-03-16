@@ -8,9 +8,9 @@ use once_cell::sync::Lazy;
 use reqwest::Client;
 
 use crate::cli::branch_fetch::Branch;
+use crate::fail;
 use crate::types::{BranchAndRemote, GitHubResponse, Remote, Repo};
 use crate::utils::{display_link, make_request, normalize_commit_msg, with_uuid};
-use crate::{fail, trace};
 
 /// A valid branch name consists of alphanumeric characters, but also '.', '-',
 /// '/' or '_'
@@ -67,7 +67,7 @@ type Git = Lazy<Box<dyn Fn(&[&str]) -> Result<String> + Send + Sync>>;
 
 pub static GIT: Git = Lazy::new(|| {
     Box::new(move |args: &[&str]| -> Result<String> {
-        trace!("$ git {}", args.join(" "));
+        log::trace!("$ git {}", args.join(" "));
         get_git_output(&spawn_git(args, &GIT_ROOT)?, args)
     })
 });
@@ -87,9 +87,10 @@ pub fn add_remote_branch(info: &BranchAndRemote, commit_hash: Option<&str>) -> a
         return Err(anyhow!("Could not fetch remote: {err}"));
     }
 
-    trace!(
+    log::trace!(
         "Added remote {} for repository {}",
-        &info.remote.repository_url, &info.remote.local_remote_alias
+        &info.remote.repository_url,
+        &info.remote.local_remote_alias
     );
 
     if let Err(err) = GIT(&[
@@ -107,7 +108,7 @@ pub fn add_remote_branch(info: &BranchAndRemote, commit_hash: Option<&str>) -> a
         ));
     }
 
-    trace!(
+    log::trace!(
         "Fetched branch {} as {} from repository {}",
         info.branch.upstream_branch_name,
         info.branch.local_branch_name,
@@ -129,7 +130,7 @@ pub fn add_remote_branch(info: &BranchAndRemote, commit_hash: Option<&str>) -> a
             )
         })?;
 
-        trace!("...and did a hard reset to commit {commit_hash}",);
+        log::trace!("...and did a hard reset to commit {commit_hash}",);
     };
 
     Ok(())
@@ -167,7 +168,7 @@ pub fn merge_into_main(
     local_branch: &str,
     remote_branch: &str,
 ) -> anyhow::Result<String, anyhow::Error> {
-    trace!("Merging branch {local_branch}");
+    log::trace!("Merging branch {local_branch}");
 
     if let Err(err) = GIT(&["merge", "--squash", local_branch]) {
         // nukes the worktree
