@@ -9,6 +9,46 @@ use tempfile::{TempDir, tempdir};
 fn initialize(repository: &str, branch: &str, pull_requests: &[&str], patches: &[&str]) -> TempDir {
     let temp_dir = tempdir().expect("tempdir failed");
 
+    // Initialize git with an initial commit
+    Command::new("git")
+        .args(["init"])
+        .current_dir(temp_dir.path())
+        .output()
+        .expect("git init failed");
+
+    // Create a file to commit (ensures we have something to commit)
+    std::fs::write(
+        temp_dir.path().join("README.md"),
+        "# Test Repository\n\nThis is a test repository for patchy tests.",
+    )
+    .expect("writing README.md failed");
+
+    // Configure git user for CI environment
+    Command::new("git")
+        .args(["config", "user.name", "CI Test User"])
+        .current_dir(temp_dir.path())
+        .output()
+        .expect("git config user.name failed");
+
+    Command::new("git")
+        .args(["config", "user.email", "test@example.com"])
+        .current_dir(temp_dir.path())
+        .output()
+        .expect("git config user.email failed");
+
+    // Add and commit the README first
+    Command::new("git")
+        .args(["add", "README.md"])
+        .current_dir(temp_dir.path())
+        .output()
+        .expect("git add README.md failed");
+
+    Command::new("git")
+        .args(["commit", "-m", "Initial commit with README"])
+        .current_dir(temp_dir.path())
+        .output()
+        .expect("git commit failed");
+
     Command::new("git")
         .args(["init"])
         .current_dir(temp_dir.path())
@@ -38,7 +78,7 @@ patches = {patches:?}
         .expect("git add failed");
 
     Command::new("git")
-        .args(["commit", "-m=initial commit"])
+        .args(["commit", "--allow-empty", "-n", "-m=initial commit"])
         .current_dir(temp_dir.path())
         .output()
         .expect("git commit failed");
@@ -92,8 +132,8 @@ fn test_conflicting_patches() {
         ))
         .stderr(predicate::str::contains(
             "✗ Could not apply patch helix-readme-all-most, skipping",
-        ));
-    // .stdout(predicate::str::contains("Success!").not());
+        ))
+        .stdout(predicate::str::contains("Success!").not());
 }
 
 #[test]
