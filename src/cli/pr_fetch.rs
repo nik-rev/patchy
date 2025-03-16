@@ -20,7 +20,7 @@ pub struct PrFetch {
     pub checkout: bool,
     /// Choose a github repository, using the `origin` remote of the current
     /// repository by default
-    pub repo_name: Option<String>,
+    pub remote_name: Option<String>,
     /// A list of pull requests to fetch
     pub prs: Vec<Pr>,
 }
@@ -95,7 +95,7 @@ impl SubCommand for PrFetch {
 
         Ok(PrFetch {
             checkout,
-            repo_name,
+            remote_name: repo_name,
             prs,
         })
     }
@@ -116,7 +116,7 @@ mod tests {
             Ok(Cli {
                 subcommand: Some(Subcommand::PrFetch(PrFetch {
                     checkout: false,
-                    repo_name: None,
+                    remote_name: None,
                     prs: vec![Pr {
                         number: 11745,
                         commit: None,
@@ -143,7 +143,7 @@ mod tests {
             Ok(Cli {
                 subcommand: Some(Subcommand::PrFetch(PrFetch {
                     checkout: false,
-                    repo_name: None,
+                    remote_name: None,
                     prs: vec![
                         Pr {
                             number: 11745,
@@ -177,7 +177,7 @@ mod tests {
             Ok(Cli {
                 subcommand: Some(Subcommand::PrFetch(PrFetch {
                     checkout: false,
-                    repo_name: None,
+                    remote_name: None,
                     prs: vec![
                         Pr {
                             number: 11745,
@@ -208,7 +208,7 @@ mod tests {
             Ok(Cli {
                 subcommand: Some(Subcommand::PrFetch(PrFetch {
                     checkout: false,
-                    repo_name: Some("helix-editor/helix".to_owned()),
+                    remote_name: Some("helix-editor/helix".to_owned()),
                     prs: vec![
                         Pr {
                             number: 11745,
@@ -231,7 +231,7 @@ mod tests {
             Ok(Cli {
                 subcommand: Some(Subcommand::PrFetch(PrFetch {
                     checkout: false,
-                    repo_name: Some("helix-editor/helix".to_owned()),
+                    remote_name: Some("helix-editor/helix".to_owned()),
                     prs: vec![Pr {
                         number: 11745,
                         commit: None,
@@ -250,7 +250,7 @@ mod tests {
             Ok(Cli {
                 subcommand: Some(Subcommand::PrFetch(PrFetch {
                     checkout: true,
-                    repo_name: None,
+                    remote_name: None,
                     prs: vec![Pr {
                         number: 11745,
                         commit: None,
@@ -266,7 +266,7 @@ mod tests {
             Ok(Cli {
                 subcommand: Some(Subcommand::PrFetch(PrFetch {
                     checkout: true,
-                    repo_name: None,
+                    remote_name: None,
                     prs: vec![Pr {
                         number: 11745,
                         commit: None,
@@ -291,7 +291,7 @@ mod tests {
             Ok(Cli {
                 subcommand: Some(Subcommand::PrFetch(PrFetch {
                     checkout: false,
-                    repo_name: None,
+                    remote_name: None,
                     prs: vec![
                         Pr {
                             number: 11745,
@@ -327,7 +327,7 @@ mod tests {
             Ok(Cli {
                 subcommand: Some(Subcommand::PrFetch(PrFetch {
                     checkout: false,
-                    repo_name: None,
+                    remote_name: None,
                     prs: vec![],
                 })),
                 help_or_version: HelpOrVersion::Help,
@@ -339,7 +339,7 @@ mod tests {
             Ok(Cli {
                 subcommand: Some(Subcommand::PrFetch(PrFetch {
                     checkout: false,
-                    repo_name: None,
+                    remote_name: None,
                     prs: vec![],
                 })),
                 help_or_version: HelpOrVersion::Version,
@@ -387,7 +387,7 @@ mod tests {
             Ok(Cli {
                 subcommand: Some(Subcommand::PrFetch(PrFetch {
                     checkout: true,
-                    repo_name: Some("helix-editor/helix".to_owned()),
+                    remote_name: Some("helix-editor/helix".to_owned()),
                     prs: vec![
                         Pr {
                             number: 11745,
@@ -413,7 +413,7 @@ mod tests {
             Ok(Cli {
                 subcommand: Some(Subcommand::PrFetch(PrFetch {
                     checkout: false,
-                    repo_name: None,
+                    remote_name: None,
                     prs: vec![
                         Pr {
                             number: 11745,
@@ -465,7 +465,7 @@ mod tests {
             Ok(Cli {
                 subcommand: Some(Subcommand::PrFetch(PrFetch {
                     checkout: false,
-                    repo_name: None,
+                    remote_name: None,
                     prs: vec![Pr {
                         number: 123,
                         commit: None,
@@ -484,7 +484,7 @@ mod tests {
             Ok(Cli {
                 subcommand: Some(Subcommand::PrFetch(PrFetch {
                     checkout: true,
-                    repo_name: Some("test".to_owned()),
+                    remote_name: Some("test".to_owned()),
                     prs: vec![Pr {
                         number: 11745,
                         commit: None,

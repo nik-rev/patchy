@@ -1,17 +1,10 @@
-use std::process;
-
 use colored::Colorize as _;
 
-use crate::{
-    commands::help,
-    fail,
-    flags::{Flag, is_valid_flag},
-    git_commands::{GIT, fetch_branch, is_valid_branch_name},
-    success,
-    types::CommandArgs,
-};
-
 use super::run::parse_if_maybe_hash;
+use crate::cli::branch_fetch::BranchFetch;
+use crate::flags::Flag;
+use crate::git_commands::{GIT, fetch_branch};
+use crate::{fail, success};
 
 pub static BRANCH_FETCH_CHECKOUT_FLAG: Flag<'static> = Flag {
     short: "-c",
@@ -43,7 +36,8 @@ pub struct Item {
     ///
     /// my-custom-branch123
     pub local_branch_name: Option<String>,
-    /// If specified, do a **hard reset** to this commit when fetching the branch
+    /// If specified, do a **hard reset** to this commit when fetching the
+    /// branch
     ///
     /// # Examples
     ///
@@ -71,8 +65,8 @@ impl Item {
 
         let (repo, branch) = remote.rsplit_once('/').ok_or_else(|| {
             anyhow::anyhow!(
-                "Invalid format: {}, skipping. \
-Valid format is: username/repo/branch. Example: helix-editor/helix/master",
+                "Invalid format: {}, skipping. Valid format is: username/repo/branch. Example: \
+                 helix-editor/helix/master",
                 remote
             )
         })?;
@@ -87,96 +81,51 @@ Valid format is: username/repo/branch. Example: helix-editor/helix/master",
     }
 }
 
-pub async fn branch_fetch(args: &CommandArgs) -> anyhow::Result<()> {
-    if args.is_empty() {
-        let _ = help(Some("branch-fetch"));
-        process::exit(1);
-    }
-
-    let has_checkout_flag = BRANCH_FETCH_CHECKOUT_FLAG.is_in(args);
-
-    let mut args = args.iter().peekable();
-
-    let mut items = vec![];
-
-    let mut no_more_flags = false;
-
-    while let Some(arg) = args.next() {
-        // After "--", each argument is interpreted literally. This way, we can e.g. use filenames that are named exactly the same as flags
-        if arg == "--" {
-            no_more_flags = true;
-            continue;
-        };
-
-        if arg.starts_with('-') && !no_more_flags {
-            if !is_valid_flag(arg, BRANCH_FETCH_FLAGS) {
-                fail!("Invalid flag: {arg}");
-                let _ = help(Some("branch-fetch"));
-                process::exit(1);
-            }
-
-            // Do not consider flags as arguments
-            continue;
-        }
-
-        let Ok(item) = Item::create(arg).map_err(|err| fail!("{err}")) else {
-            continue;
-        };
-
-        let next_arg = args.peek();
-        let maybe_custom_branch_name: Option<String> = next_arg.and_then(|next_arg| {
-            BRANCH_FETCH_BRANCH_NAME_FLAG
-                .extract_from_arg(next_arg)
-                .filter(|branch_name| is_valid_branch_name(branch_name))
-        });
-
-        if maybe_custom_branch_name.is_some() {
-            args.next();
-        };
-
-        let item = item.with_branch_name(maybe_custom_branch_name);
-
-        items.push(item);
-    }
-
-    let client = reqwest::Client::new();
-
-    for (i, item) in items.into_iter().enumerate() {
-        let hash = item.commit_hash.clone();
-        let repo = item.repo.clone();
-        match fetch_branch(item, &client).await {
+pub async fn branch_fetch(args: BranchFetch) -> anyhow::Result<()> {
+    #[expect(
+        clippy::unused_enumerate_index,
+        reason = "The commented code will use this. TODO"
+    )]
+    for (_i, branch) in args.branches.into_iter().enumerate() {
+        match fetch_branch(&branch).await {
             Ok((_, info)) => {
                 success!(
-                    "Fetched branch {}/{} available at branch {}{}",
-                    repo,
+                    "Fetched branch {}/{}/{} available at branch {}{}",
+                    branch.repo_owner,
+                    branch.repo_name,
                     info.branch.upstream_branch_name,
                     info.branch.local_branch_name.bright_cyan(),
-                    hash.map(|commit_hash| format!(", at commit {}", commit_hash.bright_yellow()))
+                    branch
+                        .commit
+                        .map(|commit_hash| format!(", at commit {}", commit_hash.bright_yellow()))
                         .unwrap_or_default()
                 );
 
                 // Attempt to cleanup after ourselves
                 let _ = GIT(&["remote", "remove", &info.remote.local_remote_alias]);
 
-                // If user uses --checkout flag, we're going to checkout the first fetched branch
-                if i == 0 && has_checkout_flag {
-                    if let Err(cant_checkout) = GIT(&["checkout", &info.branch.local_branch_name]) {
-                        fail!(
-                            "Could not check out branch {}:\n{cant_checkout}",
-                            info.branch.local_branch_name
-                        );
-                    } else {
-                        success!(
-                            "Automatically checked out the first branch: {}",
-                            info.branch.local_branch_name
-                        );
-                    }
-                }
-            }
+                // If user uses --checkout flag, we're going to checkout the
+                // first fetched branch
+                // if i == 0 && args.checkout {
+                //     if let Err(cant_checkout) = GIT(&["checkout",
+                // &info.branch.local_branch_name]) {
+                //         fail!(
+                //             "Could not check out branch
+                // {}:\n{cant_checkout}",
+                //             info.branch.local_branch_name
+                //         );
+                //     } else {
+                //         success!(
+                //             "Automatically checked out the first branch: {}",
+                //             info.branch.local_branch_name
+                //         );
+                //     }
+                // }
+            },
             Err(err) => {
                 fail!("{err}");
                 continue;
-            }
+            },
         };
     }
 

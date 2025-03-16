@@ -1,6 +1,8 @@
 use anyhow::anyhow;
 use rand::{Rng as _, distributions};
-use reqwest::{Client, header::USER_AGENT};
+use reqwest::header::USER_AGENT;
+
+use crate::git_commands::CLIENT;
 
 pub fn with_uuid(s: &str) -> String {
     format!(
@@ -13,7 +15,8 @@ pub fn with_uuid(s: &str) -> String {
     )
 }
 
-/// Converts a commit message to only contain lowercase characters, underscores and dashes
+/// Converts a commit message to only contain lowercase characters, underscores
+/// and dashes
 pub fn normalize_commit_msg(commit_msg: &str) -> String {
     commit_msg
         .chars()
@@ -33,8 +36,8 @@ pub fn display_link(text: &str, url: &str) -> String {
     format!("\u{1b}]8;;{}\u{1b}\\{}\u{1b}]8;;\u{1b}\\", url, text)
 }
 
-pub async fn make_request(client: &Client, url: &str) -> anyhow::Result<String> {
-    let request = client
+pub async fn make_request(url: &str) -> anyhow::Result<String> {
+    let request = CLIENT
         .get(url)
         .header(USER_AGENT, "{APP_NAME}")
         .send()
@@ -45,16 +48,15 @@ pub async fn make_request(client: &Client, url: &str) -> anyhow::Result<String> 
             let out = res.text().await?;
 
             Ok(out)
-        }
+        },
         Ok(res) => {
             let status = res.status();
             let text = res.text().await?;
 
             Err(anyhow!(
-                "Request failed with status: \
-                {status}\nRequested URL: {url}\nResponse: {text}",
+                "Request failed with status: {status}\nRequested URL: {url}\nResponse: {text}",
             ))
-        }
+        },
         Err(err) => Err(anyhow!("Error sending request: {err}")),
     }
 }

@@ -1,94 +1,47 @@
-use std::error::Error;
-use std::{env, process};
+use core::error;
+use std::env;
 
-use colored::Colorize as _;
-use patchy::cli::{self, Cli, Subcommand};
-use patchy::commands::branch_fetch::branch_fetch;
-use patchy::commands::help::{HELP_FLAG, VERSION_FLAG};
-use patchy::commands::{gen_patch, help, init, pr_fetch, run};
-use patchy::types::CommandArgs;
-use patchy::{PatchyError, fail};
-use reqwest::ClientBuilder;
+use patchy::cli::flags::HelpOrVersion;
+use patchy::cli::{Cli, Subcommand};
+use patchy::{PatchyError, commands};
 
-async fn process_subcommand(subcommand: &str, args: CommandArgs) -> Result<(), Box<dyn Error>> {
-    match subcommand {
-        // main commands
-        "init" => init(&args)?,
-        "run" => run(&args).await?,
-        "gen-patch" => gen_patch(&args)?,
-        // lower level commands
-        "pr-fetch" => pr_fetch(&args).await?,
-        "branch-fetch" => branch_fetch(&args).await?,
-        unrecognized => {
-            if !unrecognized.is_empty() {
-                fail!(
-                    "{}",
-                    format!(
-                        "  Unknown {unknown}: {}",
-                        unrecognized,
-                        unknown = if unrecognized.starts_with('-') {
-                            "flag".bright_red()
-                        } else {
-                            "command".bright_red()
-                        }
-                    )
-                    .bright_red()
-                );
-            }
-
-            help(None)?;
-        },
-    }
-
-    Ok(())
-}
-
-async fn main_impl() -> Result<(), PatchyError> {
+// async fn main_impl() -> Result<String, PatchyError> {
+async fn main_impl() -> Result<String, Box<dyn error::Error>> {
     let args = Cli::parse().map_err(PatchyError::CliParseError)?;
 
-    Ok(())
+    let subcommand = match args.help_or_version {
+        HelpOrVersion::Help => {
+            return Ok(commands::print_help(args.subcommand));
+        },
+        HelpOrVersion::Version => {
+            return Ok(env!("CARGO_PKG_VERSION").to_owned());
+        },
+        HelpOrVersion::None => args.subcommand.unwrap(),
+    };
+
+    let _a = match subcommand {
+        Subcommand::Init(_init_args) => commands::init(),
+        Subcommand::Run(run_args) => Ok(commands::run(run_args).await?),
+        Subcommand::GenPatch(gen_patch_args) => commands::gen_patch(gen_patch_args),
+        Subcommand::PrFetch(pr_fetch_args) => Ok(commands::pr_fetch(pr_fetch_args).await?),
+        Subcommand::BranchFetch(branch_fetch_args) => {
+            Ok(commands::branch_fetch(branch_fetch_args).await?)
+        },
+    };
+
+    Ok(String::new())
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // let args = cli::Cli::parse()?;
-
-    // if args.help || args.subcommand.is_none() {
-    //     todo!()
-    // } else if args.version {
-    //     print!("{}", env!("CARGO_PKG_VERSION"))
-    // } else {
-    //     match args.subcommand.unwrap() {
-    //         Subcommand::Init => (),
-    //     }
-    // }
-
-    // Ok(())
-
-    let mut args = env::args();
-    let _command_name = args.next();
-    let subcommand = args.next().unwrap_or_default();
-
-    let mut args: CommandArgs = args.collect();
-
-    if subcommand.starts_with('-') {
-        // We're not using any command, only flags
-        args.insert(subcommand.clone());
-    }
-
-    if HELP_FLAG.is_in(&args) {
-        help(Some(&subcommand))
-    } else if VERSION_FLAG.is_in(&args) {
-        print!("{}", env!("CARGO_PKG_VERSION"));
-
-        Ok(())
-    } else {
-        match process_subcommand(subcommand.as_str(), args).await {
-            Ok(()) => Ok(()),
-            Err(msg) => {
-                fail!("{msg}");
-                process::exit(1);
-            },
-        }
+async fn main() -> Result<(), ()> {
+    match main_impl().await {
+        Ok(ok) => {
+            print!("{ok}");
+            Ok(())
+        },
+        Err(err) => {
+            eprint!("{err}");
+            Err(())
+        },
     }
 }

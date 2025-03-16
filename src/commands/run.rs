@@ -3,19 +3,19 @@ use std::{fs, process};
 use anyhow::anyhow;
 use colored::Colorize as _;
 
+use crate::backup::{files, restore};
+use crate::cli::run::Run;
+use crate::commands::pr_fetch::ignore_octothorpe;
+use crate::flags::Flag;
+use crate::git_commands::{
+    GIT, GIT_ROOT, add_remote_branch, checkout_from_remote, clean_up_remote, fetch_pull_request,
+    merge_pull_request,
+};
+use crate::types::{Branch, BranchAndRemote, Configuration, Remote};
+use crate::utils::{display_link, with_uuid};
 use crate::{
-    APP_NAME, CONFIG_FILE, CONFIG_ROOT, INDENT,
-    backup::{files, restore},
-    commands::{init, pr_fetch::ignore_octothorpe},
-    confirm_prompt, fail,
-    flags::Flag,
-    git_commands::{
-        GIT, GIT_ROOT, add_remote_branch, checkout_from_remote, clean_up_remote,
-        fetch_pull_request, merge_pull_request,
-    },
-    info, success, trace,
-    types::{Branch, BranchAndRemote, CommandArgs, Configuration, Remote},
-    utils::{display_link, with_uuid},
+    APP_NAME, CONFIG_FILE, CONFIG_ROOT, INDENT, commands, confirm_prompt, fail, info, success,
+    trace,
 };
 
 pub static RUN_YES_FLAG: Flag<'static> = Flag {
@@ -33,7 +33,8 @@ pub fn parse_if_maybe_hash(input: &str, syntax: &str) -> (String, Option<String>
     let len = parts.len();
 
     if len == 1 {
-        // The string does not contain the <syntax>, so the user chose to use the latest commit rather than a specific one
+        // The string does not contain the <syntax>, so the user chose to use the latest
+        // commit rather than a specific one
         (input.into(), None)
     } else {
         // They want to use a specific commit
@@ -43,30 +44,30 @@ pub fn parse_if_maybe_hash(input: &str, syntax: &str) -> (String, Option<String>
     }
 }
 
-pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
+pub async fn run(args: Run) -> anyhow::Result<()> {
     println!();
 
     let config_path = GIT_ROOT.join(CONFIG_ROOT);
-    let has_yes_flag = RUN_YES_FLAG.is_in(args);
 
     let config_file_path = config_path.join(CONFIG_FILE);
 
     let Ok(config_raw) = fs::read_to_string(config_file_path.clone()) else {
         fail!("Could not find configuration file at {CONFIG_ROOT}/{CONFIG_FILE}");
 
-        // We don't want to have *any* sort of prompt when using the -y flag since that would be problematic in scripts
-        if !has_yes_flag
+        // We don't want to have *any* sort of prompt when using the -y flag since that
+        // would be problematic in scripts
+        if !args.yes
             && confirm_prompt!(
                 "Would you like us to run {} {} to initialize it?",
                 "patchy".bright_blue(),
                 "init".bright_yellow(),
             )
         {
-            if let Err(err) = init(args) {
+            if let Err(err) = commands::init() {
                 fail!("{err}");
                 process::exit(1);
             };
-        } else if has_yes_flag {
+        } else if args.yes {
             eprintln!(
                 "You can create it with {} {}",
                 "patchy".bright_blue(),
@@ -76,7 +77,8 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
             // user said "no" in the prompt, so we don't do any initializing
         }
 
-        // We don't want to read the default configuration file as config_raw. Since it's empty there's no reason why the user would want to run it.
+        // We don't want to read the default configuration file as config_raw. Since
+        // it's empty there's no reason why the user would want to run it.
 
         process::exit(0);
     };
@@ -128,8 +130,6 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
         &info.remote.local_remote_alias,
     )?;
 
-    let client = reqwest::Client::new();
-
     if config.pull_requests.is_empty() {
         info!(
             "You haven't specified any pull requests to fetch in your config, {}",
@@ -140,19 +140,14 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
         );
     } else {
         // TODO: make this concurrent, see https://users.rust-lang.org/t/processing-subprocesses-concurrently/79638/3
-        // Git cannot handle multiple threads executing commands in the same repository, so we can't use threads, but we can run processes in the background
+        // Git cannot handle multiple threads executing commands in the same repository,
+        // so we can't use threads, but we can run processes in the background
         for pull_request in &config.pull_requests {
             let pull_request = ignore_octothorpe(pull_request);
             let (pull_request, commit_hash) = parse_if_maybe_hash(&pull_request, " @ ");
             // TODO: refactor this to not use such deep nesting
-            match fetch_pull_request(
-                &config.repo,
-                &pull_request,
-                &client,
-                None,
-                commit_hash.as_deref(),
-            )
-            .await
+            match fetch_pull_request(&config.repo, &pull_request, None, commit_hash.as_deref())
+                .await
             {
                 Ok((response, info)) => {
                     match merge_pull_request(
@@ -177,17 +172,17 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
                                     &response.html_url
                                 ),
                             );
-                        }
+                        },
                         Err(err) => {
                             fail!("{err}");
                             continue;
-                        }
+                        },
                     };
-                }
+                },
                 Err(err) => {
                     fail!("Could not fetch branch from remote\n{err}");
                     continue;
-                }
+                },
             }
         }
     }
@@ -259,14 +254,15 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
         &info.branch.local_branch_name,
     )?;
 
-    if has_yes_flag
+    if args.yes
         || confirm_prompt!(
             "Overwrite branch {}? This is irreversible.",
             config.local_branch.cyan()
         )
     {
-        // forcefully renames the branch we are currently on into the branch specified by the user.
-        // WARNING: this is a destructive action which erases the original branch
+        // forcefully renames the branch we are currently on into the branch specified
+        // by the user. WARNING: this is a destructive action which erases the
+        // original branch
         GIT(&[
             "branch",
             "--move",
@@ -274,7 +270,7 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
             &temporary_branch,
             &config.local_branch,
         ])?;
-        if has_yes_flag {
+        if args.yes {
             info!(
                 "Overwrote branch {} since you supplied the {} flag",
                 config.local_branch.cyan(),
@@ -289,7 +285,8 @@ pub async fn run(args: &CommandArgs) -> anyhow::Result<()> {
         );
         let command = format!("\n{INDENT}{}\n", command.bright_magenta());
         println!(
-            "\n{INDENT}  You can still manually overwrite {} with the following command:\n  {command}",
+            "\n{INDENT}  You can still manually overwrite {} with the following command:\n  \
+             {command}",
             config.local_branch.cyan(),
         );
         process::exit(1)
