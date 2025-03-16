@@ -1,22 +1,19 @@
-use crate::{commands::branch_fetch, fail, types::Repo, utils::display_link};
-use colored::Colorize as _;
-use std::{
-    env, io,
-    path::{Path, PathBuf},
-    process::{self, Output},
-};
+use std::path::{Path, PathBuf};
+use std::process::{self, Output};
+use std::{env, io};
 
 use anyhow::{Result, anyhow};
+use colored::Colorize as _;
 use once_cell::sync::Lazy;
 use reqwest::Client;
 
-use crate::{
-    trace,
-    types::{Branch, BranchAndRemote, GitHubResponse, Remote},
-    utils::{make_request, normalize_commit_msg, with_uuid},
-};
+use crate::cli::branch_fetch::Branch;
+use crate::types::{BranchAndRemote, GitHubResponse, Remote, Repo};
+use crate::utils::{display_link, make_request, normalize_commit_msg, with_uuid};
+use crate::{fail, trace};
 
-/// A valid branch name consists of alphanumeric characters, but also '.', '-', '/' or '_'
+/// A valid branch name consists of alphanumeric characters, but also '.', '-',
+/// '/' or '_'
 pub fn is_valid_branch_name(branch_name: &str) -> bool {
     branch_name
         .chars()
@@ -63,7 +60,7 @@ pub static GIT_ROOT: Lazy<PathBuf> = Lazy::new(|| match get_git_root() {
     Err(err) => {
         fail!("Failed to determine Git root directory.\n{err}");
         process::exit(1)
-    }
+    },
 });
 
 type Git = Lazy<Box<dyn Fn(&[&str]) -> Result<String> + Send + Sync>>;
@@ -75,7 +72,10 @@ pub static GIT: Git = Lazy::new(|| {
     })
 });
 
-/// Fetches a branch of a remote into local. Optionally accepts a commit hash for versioning.
+pub static CLIENT: Lazy<Client> = Lazy::new(|| *Box::new(reqwest::Client::new()));
+
+/// Fetches a branch of a remote into local. Optionally accepts a commit hash
+/// for versioning.
 pub fn add_remote_branch(info: &BranchAndRemote, commit_hash: Option<&str>) -> anyhow::Result<()> {
     if let Err(err) = GIT(&[
         "remote",
@@ -101,8 +101,7 @@ pub fn add_remote_branch(info: &BranchAndRemote, commit_hash: Option<&str>) -> a
         ),
     ]) {
         return Err(anyhow!(
-            "We couldn't find branch {} of GitHub repository {}. Are you sure it \
-                     exists?\n{err}",
+            "We couldn't find branch {} of GitHub repository {}. Are you sure it exists?\n{err}",
             info.branch.upstream_branch_name,
             info.remote.repository_url
         ));
@@ -124,8 +123,7 @@ pub fn add_remote_branch(info: &BranchAndRemote, commit_hash: Option<&str>) -> a
         ])
         .map_err(|err| {
             anyhow!(
-                "We couldn't find commit {} \
-                                of branch {}. Are you sure it exists?\n{err}",
+                "We couldn't find commit {} of branch {}. Are you sure it exists?\n{err}",
                 commit_hash,
                 info.branch.local_branch_name
             )
@@ -139,7 +137,8 @@ pub fn add_remote_branch(info: &BranchAndRemote, commit_hash: Option<&str>) -> a
 
 /// Removes a remote and its branch
 pub fn clean_up_remote(remote: &str, branch: &str) -> anyhow::Result<()> {
-    // NOTE: Caller needs to ensure this function only runs if the script created the branch or if the user gave explicit permission
+    // NOTE: Caller needs to ensure this function only runs if the script created
+    // the branch or if the user gave explicit permission
     GIT(&["branch", "--delete", "--force", branch])?;
     GIT(&["remote", "remove", remote])?;
     Ok(())
@@ -149,8 +148,8 @@ pub fn checkout_from_remote(branch: &str, remote: &str) -> anyhow::Result<String
     let current_branch = GIT(&["rev-parse", "--abbrev-ref", "HEAD"]).or_else(|err| {
         clean_up_remote(remote, branch)?;
         Err(anyhow!(
-            "Couldn't get the current branch. This usually happens \
-            when the current branch does not have any commits.\n{err}"
+            "Couldn't get the current branch. This usually happens when the current branch does \
+             not have any commits.\n{err}"
         ))
     })?;
 
@@ -215,11 +214,10 @@ pub async fn merge_pull_request(
         .bright_blue();
 
         anyhow!(
-            "Could not merge branch {} into the current branch for pull request {pr} \
-            since the merge is non-trivial.\nYou will need to merge it yourself:\n  {} \
-            {0}\nNote: To learn how to merge only once and re-use for subsequent \
-            invocations of patchy, see {support_url}\nSkipping this PR. Error \
-             message from git:\n{err}",
+            "Could not merge branch {} into the current branch for pull request {pr} since the \
+             merge is non-trivial.\nYou will need to merge it yourself:\n  {} {0}\nNote: To learn \
+             how to merge only once and re-use for subsequent invocations of patchy, see \
+             {support_url}\nSkipping this PR. Error message from git:\n{err}",
             &info.branch.local_branch_name.bright_cyan(),
             "git merge --squash".bright_blue()
         )
@@ -249,13 +247,16 @@ pub async fn merge_pull_request(
 enum AvailableBranch {
     /// In this case, we can just use the original `branch` that we passed in
     First,
-    /// The first branch was available, so we slapped on some arbitrary identifier at the end
-    /// Represents a branch like some-branch-2, some-branch-3
+    /// The first branch was available, so we slapped on some arbitrary
+    /// identifier at the end Represents a branch like some-branch-2,
+    /// some-branch-3
     Other(String),
 }
 
-/// Given a branch, either return this branch or the first available branch with an identifier at the end (a `-#`) where `#` represents a number
-/// So we can keep on "trying" for a branch that isn't used. We might try `some-branch`, and if it already exists we will then try:
+/// Given a branch, either return this branch or the first available branch with
+/// an identifier at the end (a `-#`) where `#` represents a number
+/// So we can keep on "trying" for a branch that isn't used. We might try
+/// `some-branch`, and if it already exists we will then try:
 ///
 /// - some-branch-2
 /// - some-branch-3
@@ -264,9 +265,12 @@ enum AvailableBranch {
 ///
 /// Stopping when we find the first available
 ///
-/// We do not want to return a branch if it already exists, since we don't want to overwrite any branch potentially losing the user their work
+/// We do not want to return a branch if it already exists, since we don't want
+/// to overwrite any branch potentially losing the user their work
 ///
-/// We also don't want to ask for a prompt for a custom name, as it would be pretty annoying to specify a name for each branch if you have like 30 pull requests you want to merge
+/// We also don't want to ask for a prompt for a custom name, as it would be
+/// pretty annoying to specify a name for each branch if you have like 30 pull
+/// requests you want to merge
 fn first_available_branch(branch: &str) -> AvailableBranch {
     let branch_exists = GIT(&["rev-parse", "--verify", branch]).is_err();
 
@@ -287,45 +291,52 @@ fn first_available_branch(branch: &str) -> AvailableBranch {
     AvailableBranch::Other(branch_name)
 }
 
-pub async fn fetch_branch(
-    item: branch_fetch::Item,
-    client: &Client,
-) -> anyhow::Result<(Repo, BranchAndRemote)> {
-    let url = format!("https://api.github.com/repos/{}", item.repo);
+pub async fn fetch_branch(branch: &Branch) -> anyhow::Result<(Repo, BranchAndRemote)> {
+    let url = format!(
+        "https://api.github.com/repos/{}/{}",
+        branch.repo_owner, branch.repo_name
+    );
 
-    let response = make_request(client, &url)
-        .await
-        .map_err(|err| anyhow!("Could not fetch branch: {}\n{err}\n", item.repo))?;
+    let response = make_request(&url).await.map_err(|err| {
+        anyhow!(
+            "Could not fetch branch: {}/{}\n{err}\n",
+            branch.repo_owner,
+            branch.repo_name
+        )
+    })?;
 
     let response: Repo = serde_json::from_str(&response).map_err(|err| {
         anyhow!("Could not parse response.\n{response}. Could not parse because: \n{err}")
     })?;
 
     let info = BranchAndRemote {
-        branch: Branch {
-            local_branch_name: item.local_branch_name.map_or_else(
-                || {
-                    let branch_name = &format!("{}/{}", item.repo, item.branch);
+        branch: crate::types::Branch {
+            local_branch_name: branch.name.clone(),
+            // TODO: allow to specify custom branch name
+            // local_branch_name: item.local_branch_name.map_or_else(
+            //     || {
+            //         let branch_name = &format!("{}/{}", item.repo, item.branch);
 
-                    match first_available_branch(branch_name) {
-                        AvailableBranch::First => branch_name.to_string(),
-                        AvailableBranch::Other(branch) => branch,
-                    }
-                },
-                Into::into,
-            ),
-            upstream_branch_name: item.branch,
+            //         match first_available_branch(branch_name) {
+            //             AvailableBranch::First => branch_name.to_string(),
+            //             AvailableBranch::Other(branch) => branch,
+            //         }
+            //     },
+            //     Into::into,
+            // ),
+            upstream_branch_name: branch.name.clone(),
         },
         remote: Remote {
             repository_url: response.clone_url.clone(),
-            local_remote_alias: with_uuid(&item.repo),
+            local_remote_alias: with_uuid(&format!("{}/{}", &branch.repo_owner, branch.repo_name)),
         },
     };
 
-    add_remote_branch(&info, item.commit_hash.as_deref()).map_err(|err| {
+    add_remote_branch(&info, branch.commit.as_deref()).map_err(|err| {
         anyhow!(
-            "Could not add remote branch {}, skipping.\n{err}",
-            item.repo
+            "Could not add remote branch {}/{}, skipping.\n{err}",
+            branch.repo_owner,
+            branch.repo_name
         )
     })?;
 
@@ -335,13 +346,12 @@ pub async fn fetch_branch(
 pub async fn fetch_pull_request(
     repo: &str,
     pull_request: &str,
-    client: &Client,
     custom_branch_name: Option<&str>,
     commit_hash: Option<&str>,
 ) -> anyhow::Result<(GitHubResponse, BranchAndRemote)> {
     let url = format!("https://api.github.com/repos/{}/pulls/{pull_request}", repo);
 
-    let response = make_request(client, &url)
+    let response = make_request(&url)
         .await
         .map_err(|err| anyhow!("Could not fetch pull request #{pull_request}\n{err}\n"))?;
 
@@ -350,7 +360,7 @@ pub async fn fetch_pull_request(
     })?;
 
     let info = BranchAndRemote {
-        branch: Branch {
+        branch: crate::types::Branch {
             upstream_branch_name: response.head.r#ref.clone(),
             local_branch_name: custom_branch_name.map_or_else(
                 || {

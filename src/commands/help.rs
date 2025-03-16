@@ -1,14 +1,27 @@
 use colored::Colorize as _;
 
-use crate::{
-    APP_NAME,
-    commands::{
-        gen_patch::GEN_PATCH_NAME_FLAG,
-        pr_fetch::{PR_FETCH_BRANCH_NAME_FLAG, PR_FETCH_CHECKOUT_FLAG, PR_FETCH_REPO_NAME_FLAG},
-        run::RUN_YES_FLAG,
-    },
-    flags::Flag,
+use crate::APP_NAME;
+use crate::cli::Subcommand;
+use crate::commands::gen_patch::GEN_PATCH_NAME_FLAG;
+use crate::commands::pr_fetch::{
+    PR_FETCH_BRANCH_NAME_FLAG, PR_FETCH_CHECKOUT_FLAG, PR_FETCH_REPO_NAME_FLAG,
 };
+use crate::commands::run::RUN_YES_FLAG;
+use crate::flags::Flag;
+
+#[expect(unused_variables, reason = "TODO")]
+pub fn print_help(subcommand: Option<Subcommand>) -> String {
+    subcommand.map_or_else(
+        || todo!(),
+        |subcommand| match subcommand {
+            Subcommand::Init(init) => todo!(),
+            Subcommand::Run(run) => todo!(),
+            Subcommand::GenPatch(gen_patch) => todo!(),
+            Subcommand::PrFetch(pr_fetch) => todo!(),
+            Subcommand::BranchFetch(branch_fetch) => todo!(),
+        },
+    )
+}
 
 fn format_subcommand(command: &str, description: &str) -> String {
     let command = command.bright_yellow();
@@ -82,7 +95,7 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
     {HELP_FLAG}
 ",
             );
-        }
+        },
         Some(cmd_name @ "run") => {
             let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
 
@@ -104,7 +117,7 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
     {RUN_YES_FLAG}
 ",
             );
-        }
+        },
         Some(cmd_name @ "gen-patch") => {
             let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
 
@@ -120,7 +133,9 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
             let example_2 = format!(
                 "{}
     {}",
-                "133cbaae83f710b793c98018cea697a04479bbe4 9ad5aa637ccf363b5d6713f66d0c2830736c35a9 cc75a895f344cf2fe83eaf6d78dfb7aeac8b33a4".bright_green(),
+                "133cbaae83f710b793c98018cea697a04479bbe4 \
+                 9ad5aa637ccf363b5d6713f66d0c2830736c35a9 cc75a895f344cf2fe83eaf6d78dfb7aeac8b33a4"
+                    .bright_green(),
                 format_description("Generate several .patch files from several commit hashes")
             );
 
@@ -133,7 +148,8 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
                 "--patch-filename=another-patch".bright_magenta(),
                 "cc75a895f344cf2fe83eaf6d78dfb7aeac8b33a4".bright_green(),
                 format_description(
-                    "Generate several .patch files from several commit hashes and give 2 of them custom names"
+                    "Generate several .patch files from several commit hashes and give 2 of them \
+                     custom names"
                 )
             );
 
@@ -161,7 +177,7 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
     {HELP_FLAG}
 ",
             );
-        }
+        },
         Some(cmd_name @ "branch-fetch") => {
             let description = format_description("Fetch remote branches into a local branch");
 
@@ -196,7 +212,7 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
     {this_command_name} {example_2}
 ",
             );
-        }
+        },
         Some(cmd_name @ "pr-fetch") => {
             let description = format_description("Fetch pull requests into a local branch");
 
@@ -223,7 +239,8 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
                 "--branch-name=another-pr".bright_magenta(),
                 "600".bright_green(),
                 format_description(
-                    "Fetch several pull requests and choose custom branch names for the pull requests #10000 and #9191"
+                    "Fetch several pull requests and choose custom branch names for the pull \
+                     requests #10000 and #9191"
                 )
             );
 
@@ -241,7 +258,9 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
             let example_5 = format!(
                 "{}
     {}",
-                "11745 10000@be8f264327f6ae729a0b372ef01f6fde49a78310 9191 600@5d10fa5beb917a0dbe0ef8441d14b3d0dd15227b".bright_green(),
+                "11745 10000@be8f264327f6ae729a0b372ef01f6fde49a78310 9191 \
+                 600@5d10fa5beb917a0dbe0ef8441d14b3d0dd15227b"
+                    .bright_green(),
                 format_description("Fetch several pull requests at a certain commit")
             );
             let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
@@ -278,7 +297,7 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
     {HELP_FLAG}
 ",
             );
-        }
+        },
         _ => {
             println!(
                 "
@@ -307,7 +326,7 @@ pub fn help(command: Option<&str>) -> anyhow::Result<()> {
     {VERSION_FLAG}
 "
             );
-        }
+        },
     }
 
     Ok(())

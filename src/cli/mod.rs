@@ -3,12 +3,12 @@ use std::env;
 
 use flags::{Flag, HelpOrVersion, LocalFlag};
 
-mod branch_fetch;
-mod flags;
-mod gen_patch;
-mod init;
-mod pr_fetch;
-mod run;
+pub mod branch_fetch;
+pub mod flags;
+pub mod gen_patch;
+pub mod init;
+pub mod pr_fetch;
+pub mod run;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CliParseError {

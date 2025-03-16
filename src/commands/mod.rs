@@ -5,8 +5,9 @@ pub mod init;
 pub mod pr_fetch;
 pub mod run;
 
+pub use branch_fetch::branch_fetch;
 pub use gen_patch::gen_patch;
-pub use help::help;
+pub use help::{help, print_help};
 pub use init::init;
 pub use pr_fetch::pr_fetch;
 pub use run::run;
