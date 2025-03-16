@@ -117,6 +117,10 @@ impl SubCommand for PrFetch {
             }
         }
 
+        if checkout && prs.is_empty() {
+            return Err(CliParseError::CheckoutNoSource);
+        }
+
         Ok(PrFetch {
             checkout,
             remote_name: repo_name,
@@ -574,6 +578,18 @@ mod tests {
             Err(CliParseError::DuplicateFlag(Flag::LocalFlag(
                 LocalFlag::RepoName("test2".to_owned())
             )))
+        );
+    }
+
+    #[test]
+    fn checkout_with_no_source() {
+        assert_eq!(
+            patchy(&["pr-fetch", "-c"]),
+            Err(CliParseError::CheckoutNoSource)
+        );
+        assert_eq!(
+            patchy(&["pr-fetch", "--checkout"]),
+            Err(CliParseError::CheckoutNoSource)
         );
     }
 

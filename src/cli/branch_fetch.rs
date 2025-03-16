@@ -1,7 +1,7 @@
 use documented::{Documented, DocumentedFields};
 
 use super::flags::CliFlag;
-use super::{CliParseError, HelpOrVersion, LocalFlag, SubCommand};
+use super::{CliParseError, Flag, HelpOrVersion, LocalFlag, SubCommand};
 
 /// A branch
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Documented, DocumentedFields)]
@@ -17,10 +17,11 @@ pub struct Branch {
 }
 
 /// Fetch branches for a GitHub repository as a local branch
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Documented, DocumentedFields)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Documented)]
 pub struct BranchFetch {
     /// A list of branches to fetch
     pub branches: Vec<Branch>,
+    pub checkout: bool,
 }
 
 impl BranchFetch {
@@ -45,6 +46,7 @@ impl SubCommand for BranchFetch {
         global_flag: &mut HelpOrVersion,
     ) -> Result<Self, CliParseError> {
         let mut branches: Vec<Branch> = vec![];
+        let mut checkout = false;
 
         for arg in args.by_ref() {
             if let Ok(flag) = arg.parse::<HelpOrVersion>() {
@@ -52,11 +54,16 @@ impl SubCommand for BranchFetch {
                 continue;
             }
 
-            // Non-flag arguments for branch-fetch are always branch names with optional
-            // commits
-            if let Some(local_flag) = LocalFlag::parse(&arg)? {
-                // Only global flags should be parsed for branch-fetch
-                return Err(CliParseError::UnexpectedFlag(local_flag));
+            match dbg!(LocalFlag::parse(&arg)?) {
+                Some(flag @ LocalFlag::Checkout) => {
+                    if checkout {
+                        return Err(CliParseError::DuplicateFlag(Flag::LocalFlag(flag)));
+                    }
+                    checkout = true;
+                    continue;
+                },
+                Some(flag) => return Err(CliParseError::UnexpectedFlag(flag)),
+                None => (),
             }
 
             let (branch_name, commit) = match arg.split_once('@') {
@@ -87,7 +94,11 @@ impl SubCommand for BranchFetch {
             });
         }
 
-        Ok(BranchFetch { branches })
+        if checkout && branches.is_empty() {
+            return Err(CliParseError::CheckoutNoSource);
+        }
+
+        Ok(BranchFetch { branches, checkout })
     }
 }
 
@@ -111,6 +122,7 @@ mod tests {
                         name: "master".to_owned(),
                         commit: None,
                     }],
+                    checkout: false,
                 })),
                 help_or_version: HelpOrVersion::None,
             })
@@ -141,6 +153,36 @@ mod tests {
                             commit: None,
                         }
                     ],
+                    checkout: false,
+                })),
+                help_or_version: HelpOrVersion::None,
+            })
+        );
+        // with checkout flag
+        assert_eq!(
+            patchy(&[
+                "branch-fetch",
+                "-c",
+                "helix-editor/helix/master",
+                "helix-editor/helix/develop"
+            ]),
+            Ok(Cli {
+                subcommand: Some(Subcommand::BranchFetch(BranchFetch {
+                    branches: vec![
+                        Branch {
+                            repo_owner: "helix-editor".to_owned(),
+                            repo_name: "helix".to_owned(),
+                            name: "master".to_owned(),
+                            commit: None,
+                        },
+                        Branch {
+                            repo_owner: "helix-editor".to_owned(),
+                            repo_name: "helix".to_owned(),
+                            name: "develop".to_owned(),
+                            commit: None,
+                        }
+                    ],
+                    checkout: true,
                 })),
                 help_or_version: HelpOrVersion::None,
             })
@@ -159,6 +201,7 @@ mod tests {
                         name: "master".to_owned(),
                         commit: Some("6049f20".to_owned()),
                     }],
+                    checkout: false,
                 })),
                 help_or_version: HelpOrVersion::None,
             })
@@ -196,6 +239,7 @@ mod tests {
                             commit: Some("abc123".to_owned()),
                         }
                     ],
+                    checkout: false,
                 })),
                 help_or_version: HelpOrVersion::None,
             })
@@ -205,7 +249,11 @@ mod tests {
     #[test]
     fn multiple_at_in_branch_name() {
         assert_eq!(
-            patchy(&["branch-fetch", "owner/repo/branch@commit@extra"]),
+            patchy(&[
+                "branch-fetch",
+                "owner/repo/branch@commit@extra",
+                "--checkout"
+            ]),
             Ok(Cli {
                 subcommand: Some(Subcommand::BranchFetch(BranchFetch {
                     branches: vec![Branch {
@@ -214,6 +262,7 @@ mod tests {
                         name: "branch".to_owned(),
                         commit: Some("commit@extra".to_owned()),
                     },],
+                    checkout: true,
                 })),
                 help_or_version: HelpOrVersion::None,
             })
@@ -225,7 +274,10 @@ mod tests {
         assert_eq!(
             patchy(&["branch-fetch", "--help"]),
             Ok(Cli {
-                subcommand: Some(Subcommand::BranchFetch(BranchFetch { branches: vec![] })),
+                subcommand: Some(Subcommand::BranchFetch(BranchFetch {
+                    branches: vec![],
+                    checkout: false
+                })),
                 help_or_version: HelpOrVersion::Help,
             })
         );
@@ -233,9 +285,34 @@ mod tests {
         assert_eq!(
             patchy(&["branch-fetch", "--version"]),
             Ok(Cli {
-                subcommand: Some(Subcommand::BranchFetch(BranchFetch { branches: vec![] })),
+                subcommand: Some(Subcommand::BranchFetch(BranchFetch {
+                    branches: vec![],
+                    checkout: false
+                })),
                 help_or_version: HelpOrVersion::Version,
             })
+        );
+    }
+
+    #[test]
+    fn duplicate_checkout() {
+        assert_eq!(
+            patchy(&["branch-fetch", "some/branch/somewhere", "-c", "--checkout"]),
+            Err(CliParseError::DuplicateFlag(Flag::LocalFlag(
+                LocalFlag::Checkout
+            )))
+        );
+    }
+
+    #[test]
+    fn checkout_with_no_source() {
+        assert_eq!(
+            patchy(&["branch-fetch", "-c"]),
+            Err(CliParseError::CheckoutNoSource)
+        );
+        assert_eq!(
+            patchy(&["branch-fetch", "--checkout"]),
+            Err(CliParseError::CheckoutNoSource)
         );
     }
 
@@ -247,7 +324,7 @@ mod tests {
         );
         assert_eq!(
             patchy(&["branch-fetch", "--checkout"]),
-            Err(CliParseError::UnexpectedFlag(LocalFlag::Checkout))
+            Err(CliParseError::CheckoutNoSource)
         );
         assert_eq!(
             patchy(&["branch-fetch", "--branch-name=test"]),
