@@ -25,11 +25,6 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-      - name: Setup Git
-        run: |
-          git --version
-          git config user.name "GitHub Actions Bot"
-          git config user.email "<>"
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:

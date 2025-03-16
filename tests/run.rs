@@ -15,6 +15,31 @@ fn initialize(repository: &str, branch: &str, pull_requests: &[&str], patches: &
         .output()
         .expect("git init failed");
 
+    std::fs::write(temp_dir.path().join("file.txt"), "content").expect("writing file.txt failed");
+
+    Command::new("git")
+        .args(["config", "user.name", "GitHub Actions"])
+        .current_dir(temp_dir.path())
+        .output()
+        .expect("git config user.name failed");
+
+    Command::new("git")
+        .args(["config", "user.email", "user@example.com"])
+        .current_dir(temp_dir.path())
+        .output()
+        .expect("git config user.email failed");
+
+    Command::new("git")
+        .args(["add", "README.md"])
+        .current_dir(temp_dir.path())
+        .output()
+        .expect("git add README.md failed");
+
+    Command::new("git")
+        .args(["commit", "-m", "Initial commit with README"])
+        .current_dir(temp_dir.path())
+        .output()
+        .expect("git commit failed");
     copy_dir("tests/fixtures/patches", temp_dir.path().join(".patchy")).expect("copy_dir failed");
 
     std::fs::write(
