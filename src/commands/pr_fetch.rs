@@ -1,9 +1,7 @@
 use anyhow::anyhow;
 use colored::Colorize as _;
 
-use super::help::{HELP_FLAG, VERSION_FLAG};
 use crate::cli::pr_fetch::{Pr, PrFetch};
-use crate::flags::Flag;
 use crate::git_commands::{GIT, GITHUB_REMOTE_PREFIX, GITHUB_REMOTE_SUFFIX, fetch_pull_request};
 use crate::utils::display_link;
 use crate::{fail, success};
@@ -18,33 +16,6 @@ pub fn ignore_octothorpe(arg: &str) -> String {
     }
     .into()
 }
-
-pub static PR_FETCH_BRANCH_NAME_FLAG: Flag<'static> = Flag {
-    short: "-b=",
-    long: "--branch-name=",
-    description: "Choose local name for the branch belonging to the preceding pull request",
-};
-
-pub static PR_FETCH_CHECKOUT_FLAG: Flag<'static> = Flag {
-    short: "-c",
-    long: "--checkout",
-    description: "Check out the branch belonging to the first pull request",
-};
-
-pub static PR_FETCH_REPO_NAME_FLAG: Flag<'static> = Flag {
-    short: "-r=",
-    long: "--repo-name=",
-    description: "Choose a github repository, using the `origin` remote of the current repository \
-                  by default",
-};
-
-pub static PR_FETCH_FLAGS: &[&Flag<'static>; 5] = &[
-    &PR_FETCH_BRANCH_NAME_FLAG,
-    &PR_FETCH_CHECKOUT_FLAG,
-    &PR_FETCH_REPO_NAME_FLAG,
-    &HELP_FLAG,
-    &VERSION_FLAG,
-];
 
 pub async fn pr_fetch(mut args: PrFetch) -> anyhow::Result<()> {
     // The user hasn't provided a custom remote, so we're going to try `origin`

@@ -1,5 +1,6 @@
 use documented::{Documented, DocumentedFields};
 
+use super::flags::CliFlag;
 use super::{CliParseError, Flag, HelpOrVersion, LocalFlag, SubCommand};
 
 /// A pull request
@@ -25,7 +26,30 @@ pub struct PrFetch {
     pub prs: Vec<Pr>,
 }
 
+impl PrFetch {
+    pub const BRANCH_NAME_FLAG: CliFlag<'static> = CliFlag {
+        short: "-b=",
+        long: "--branch-name=",
+        description: "Choose local name for the branch belonging to the preceding pull request",
+    };
+
+    pub const CHECKOUT_FLAG: CliFlag<'static> = CliFlag {
+        short: "-c",
+        long: "--checkout",
+        description: "Check out the branch belonging to the first pull request",
+    };
+
+    pub const REPO_NAME_FLAG: CliFlag<'static> = CliFlag {
+        short: "-r=",
+        long: "--repo-name=",
+        description: "Choose a github repository, using the `origin` remote of the current \
+                      repository by default",
+    };
+}
+
 impl SubCommand for PrFetch {
+    const NAME: &str = "pr-fetch";
+
     fn parse<I: Iterator<Item = String>>(
         args: &mut I,
         global_flag: &mut HelpOrVersion,

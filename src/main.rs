@@ -11,7 +11,7 @@ async fn main_impl() -> Result<String, Box<dyn error::Error>> {
 
     let subcommand = match args.help_or_version {
         HelpOrVersion::Help => {
-            return Ok(commands::print_help(args.subcommand));
+            return Ok(commands::help(args.subcommand));
         },
         HelpOrVersion::Version => {
             return Ok(env!("CARGO_PKG_VERSION").to_owned());

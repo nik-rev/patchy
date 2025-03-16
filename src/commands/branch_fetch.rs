@@ -2,24 +2,8 @@ use colored::Colorize as _;
 
 use super::run::parse_if_maybe_hash;
 use crate::cli::branch_fetch::BranchFetch;
-use crate::flags::Flag;
 use crate::git_commands::{GIT, fetch_branch};
 use crate::{fail, success};
-
-pub static BRANCH_FETCH_CHECKOUT_FLAG: Flag<'static> = Flag {
-    short: "-c",
-    long: "--checkout",
-    description: "Check out the first fetched branch",
-};
-
-pub static BRANCH_FETCH_BRANCH_NAME_FLAG: Flag<'static> = Flag {
-    short: "-b=",
-    long: "--branch-name=",
-    description: "Choose local name for the branch belonging to the preceding pull request",
-};
-
-pub static BRANCH_FETCH_FLAGS: &[&Flag<'static>; 2] =
-    &[&BRANCH_FETCH_BRANCH_NAME_FLAG, &BRANCH_FETCH_CHECKOUT_FLAG];
 
 pub struct Item {
     /// # Examples
