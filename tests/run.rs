@@ -55,7 +55,7 @@ fn test_helix_remove_tab() {
         &["helix-remove-tab"],
     );
 
-    Command::cargo_bin(env!("CARGO_PKG_NAME"))
+    Command::cargo_bin("patchy")
         .unwrap()
         .args(["run", "--yes"])
         .current_dir(tmp.as_ref())
@@ -81,7 +81,7 @@ fn test_conflicting_patches() {
         ],
     );
 
-    std::process::Command::cargo_bin(env!("CARGO_PKG_NAME"))
+    std::process::Command::cargo_bin("patchy")
         .unwrap()
         .args(["run", "--yes"])
         .current_dir(tmp.path())
@@ -109,7 +109,7 @@ fn test_sequential_patches() {
         ],
     );
 
-    std::process::Command::cargo_bin(env!("CARGO_PKG_NAME"))
+    std::process::Command::cargo_bin("patchy")
         .unwrap()
         .args(["run", "--yes"])
         .current_dir(tmp.path())
@@ -137,7 +137,7 @@ fn test_nonexistent_patch() {
         &["foo"],
     );
 
-    std::process::Command::cargo_bin(env!("CARGO_PKG_NAME"))
+    std::process::Command::cargo_bin("patchy")
         .unwrap()
         .args(["run", "--yes"])
         .current_dir(tmp.path())

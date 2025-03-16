@@ -1,5 +1,5 @@
 [package]
-name = "patchy"
+name = "patchy-bin"
 version = "1.3.0"
 edition = "2024"
 license = "MIT"
