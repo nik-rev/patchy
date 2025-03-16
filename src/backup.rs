@@ -1,10 +1,8 @@
-use std::fs::read_to_string;
+use std::ffi::OsString;
+use std::fs::{File, ReadDir, read_to_string};
 use std::io::Write as _;
-use std::{
-    ffi::OsString,
-    fs::{File, ReadDir},
-    path::PathBuf,
-};
+use std::path::PathBuf;
+
 use tempfile::tempfile;
 
 use crate::CONFIG_ROOT;

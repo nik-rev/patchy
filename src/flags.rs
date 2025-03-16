@@ -5,7 +5,8 @@ use std::env;
 use colored::Colorize as _;
 use once_cell::sync::Lazy;
 
-use crate::{commands::help::format_description, types::CommandArgs};
+use crate::commands::help::format_description;
+use crate::types::CommandArgs;
 
 pub struct Flag<'a> {
     pub short: &'a str,
@@ -51,7 +52,8 @@ impl Flag<'_> {
 }
 
 impl Display for Flag<'_> {
-    /// Formats a flag into a colored format with a description, printable to the terminal
+    /// Formats a flag into a colored format with a description, printable to
+    /// the terminal
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -66,7 +68,8 @@ impl Display for Flag<'_> {
 
 /// Checks whether an input argument is a valid flag
 pub fn is_valid_flag(arg: &str, available_flags: &[&Flag]) -> bool {
-    // TODO: flags that don't end in "=" should be compared fully, not just the beginning
+    // TODO: flags that don't end in "=" should be compared fully, not just the
+    // beginning
     available_flags
         .iter()
         .flat_map(|flag| [flag.short, flag.long])

@@ -18,10 +18,11 @@ pub enum PatchyError {
 
 impl fmt::Display for PatchyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let error = "error".bright_red();
+        let error = "error".bright_red().bold();
+        // TODO: other kinds of errors, instead of Box<dyn Error> from main_impl
         match self {
             PatchyError::CliParseError(cli_parse_error) => {
-                write!(f, "{error} (Could not parse arguments): {cli_parse_error}",)
+                write!(f, "{error}: {cli_parse_error}",)
             },
         }
     }

@@ -33,15 +33,13 @@ async fn main_impl() -> Result<String, Box<dyn error::Error>> {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), ()> {
+async fn main() {
     match main_impl().await {
         Ok(ok) => {
-            print!("{ok}");
-            Ok(())
+            println!("{ok}");
         },
         Err(err) => {
-            eprint!("{err}");
-            Err(())
+            eprintln!("{err}");
         },
     }
 }

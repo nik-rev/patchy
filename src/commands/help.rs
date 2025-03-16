@@ -141,7 +141,8 @@ pub fn help(subcommand: Option<Subcommand>) -> String {
                     "{}
     {}",
                     "133cbaae83f710b793c98018cea697a04479bbe4 \
-                     9ad5aa637ccf363b5d6713f66d0c2830736c35a9 cc75a895f344cf2fe83eaf6d78dfb7aeac8b33a4"
+                     9ad5aa637ccf363b5d6713f66d0c2830736c35a9 \
+                     cc75a895f344cf2fe83eaf6d78dfb7aeac8b33a4"
                         .bright_green(),
                     format_description("Generate several .patch files from several commit hashes")
                 );
@@ -155,8 +156,8 @@ pub fn help(subcommand: Option<Subcommand>) -> String {
                     "--patch-filename=another-patch".bright_magenta(),
                     "cc75a895f344cf2fe83eaf6d78dfb7aeac8b33a4".bright_green(),
                     format_description(
-                        "Generate several .patch files from several commit hashes and give 2 of them \
-                         custom names"
+                        "Generate several .patch files from several commit hashes and give 2 of \
+                         them custom names"
                     )
                 );
 
@@ -191,21 +192,21 @@ pub fn help(subcommand: Option<Subcommand>) -> String {
 
                 let example_1 = format!(
                     "{}
-    {}",
+                {}",
                     "11745".bright_green(),
                     format_description("Fetch a single pull request")
                 );
 
                 let example_2 = format!(
                     "{}
-    {}",
+                {}",
                     "11745 10000 9191 600".bright_green(),
                     format_description("Fetch several pull requests")
                 );
 
                 let example_3 = format!(
                     "{} {} {} {} {}
-    {}",
+                {}",
                     "11745 10000".bright_green(),
                     "--branch-name=some-pr".bright_magenta(),
                     "9191".bright_green(),
@@ -219,31 +220,34 @@ pub fn help(subcommand: Option<Subcommand>) -> String {
 
                 let example_4 = format!(
                     "{} {} {}
-    {}",
+                {}",
                     "--repo-name=helix-editor/helix".bright_magenta(),
                     "11745 10000 9191 600".bright_green(),
                     "--checkout".bright_magenta(),
-                    format_description(
-                        "Fetch several pull requests, checkout the first one and use a custom github repo: https://github.com/helix-editor/helix"
-                    )
+                    // NOTE: using concat for this because rustfmt breaks for some reason
+                    format_description(concat!(
+                        "Fetch several pull requests,",
+                        " checkout the first one and use a custom github",
+                        " repo: https://github.com/helix-editor/helix"
+                    ))
                 );
 
                 let example_5 = format!(
                     "{}
-    {}",
+                {}",
                     "11745 10000@be8f264327f6ae729a0b372ef01f6fde49a78310 9191 \
                      600@5d10fa5beb917a0dbe0ef8441d14b3d0dd15227b"
                         .bright_green(),
                     format_description("Fetch several pull requests at a certain commit")
                 );
+
                 let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
 
                 let branch_name_flag = PrFetch::BRANCH_NAME_FLAG;
-    
+
                 let checkout_flag = PrFetch::CHECKOUT_FLAG;
-    
+
                 let repo_name_flag = PrFetch::REPO_NAME_FLAG;
-                
 
                 format!(
                     "
@@ -284,13 +288,13 @@ pub fn help(subcommand: Option<Subcommand>) -> String {
 
                 let example_1 = format!(
                     "{}
-    {}",
+                {}",
                     "helix-editor/helix/master".bright_green(),
                     format_description("Fetch a single branch")
                 );
                 let example_2 = format!(
                     "{}
-    {}",
+                {}",
                     "'helix-editor/helix/master@6049f20'".bright_green(),
                     format_description("Fetch a single branch at a certain commit")
                 );
