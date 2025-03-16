@@ -36,9 +36,11 @@ async fn main() {
     match main_impl().await {
         Ok(ok) => {
             println!("{}", ok.unwrap_or_default());
+            std::process::exit(0);
         },
         Err(err) => {
             eprintln!("{err}");
+            std::process::exit(1);
         },
     }
 }

@@ -192,23 +192,16 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
     }
 
     // apply patches if they exist
-    for patch in config.patches.into_iter() {
-        let file_name = GIT_ROOT.join(CONFIG_ROOT).join(&format!("{patch}.patch"));
+    for patch in config.patches {
+        let file_name = GIT_ROOT.join(CONFIG_ROOT).join(format!("{patch}.patch"));
         if !file_name.exists() {
             fail!("Could not find patch {patch}, skipping");
             continue;
         }
 
-        if let Err(err) = GIT(&[
-            "am",
-            "--keep-cr",
-            "--signoff",
-            file_name.to_str().unwrap()
-        ]) {
+        if let Err(err) = GIT(&["am", "--keep-cr", "--signoff", &file_name.to_string_lossy()]) {
             GIT(&["am", "--abort"])?;
-            return Err(anyhow!(
-                "Could not apply patch {patch}, skipping\n{err}"
-            ));
+            return Err(anyhow!("Could not apply patch {patch}, skipping\n{err}"));
         };
 
         let last_commit_message = GIT(&["log", "-1", "--format=%B"])?;
