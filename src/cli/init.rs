@@ -1,6 +1,9 @@
+use documented::Documented;
+
 use super::{CliParseError, HelpOrVersion, LocalFlag, SubCommand};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+/// Create example config file
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Documented)]
 pub struct Init;
 
 impl SubCommand for Init {

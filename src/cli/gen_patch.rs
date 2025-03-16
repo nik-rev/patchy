@@ -1,13 +1,20 @@
+use documented::{Documented, DocumentedFields};
+
 use super::{CliParseError, HelpOrVersion, LocalFlag, SubCommand};
 
-#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
+/// A structure representing information needed to create a .patch file
+#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Documented, DocumentedFields)]
 pub struct Patch {
+    /// The commit which should be transformed into a .patch file
     pub commit: String,
+    /// Give the file a custom filename instead of generating it
     pub custom_filename: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+/// Generate a .patch file from commit hashes
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Documented, DocumentedFields)]
 pub struct GenPatch {
+    /// Choose filename for the patch
     pub patches: Vec<Patch>,
 }
 

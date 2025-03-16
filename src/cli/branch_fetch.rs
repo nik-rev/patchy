@@ -1,6 +1,9 @@
+use documented::{Documented, DocumentedFields};
+
 use super::{CliParseError, HelpOrVersion, LocalFlag, SubCommand};
 
-#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
+/// A branch
+#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Documented, DocumentedFields)]
 pub struct Branch {
     /// Name of the GitHub owner of the repository
     pub repo_owner: String,
@@ -12,8 +15,10 @@ pub struct Branch {
     pub commit: Option<String>,
 }
 
+/// Fetch branches for a GitHub repository as a local branch
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BranchFetch {
+    /// A list of branches to fetch
     pub branches: Vec<Branch>,
 }
 
