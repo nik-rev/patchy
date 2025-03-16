@@ -1,4 +1,4 @@
-use super::{CliParseError, GlobalFlag, LocalFlag, SubCommand};
+use super::{CliParseError, HelpOrVersion, LocalFlag, SubCommand};
 
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Patch {
@@ -14,12 +14,12 @@ pub struct GenPatch {
 impl SubCommand for GenPatch {
     fn parse<I: Iterator<Item = String>>(
         args: &mut I,
-        global_flag: &mut GlobalFlag,
+        global_flag: &mut HelpOrVersion,
     ) -> Result<Self, CliParseError> {
         let mut patches: Vec<Patch> = vec![];
 
         for arg in args.by_ref() {
-            if let Ok(flag) = arg.parse::<GlobalFlag>() {
+            if let Ok(flag) = arg.parse::<HelpOrVersion>() {
                 global_flag.validate(flag)?;
                 continue;
             }
@@ -51,7 +51,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::cli::{Cli, Subcommand, patchy};
+    use crate::cli::tests::patchy;
+    use crate::cli::{Cli, Subcommand};
 
     const COMMIT_1: &str = "133cbaae83f710b793c98018cea697a04479bbe4";
     const COMMIT_2: &str = "9ad5aa637ccf363b5d6713f66d0c2830736c35a9";
@@ -68,7 +69,7 @@ mod tests {
                         custom_filename: None,
                     }],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }
@@ -93,7 +94,7 @@ mod tests {
                         }
                     ],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }
@@ -126,7 +127,7 @@ mod tests {
                         }
                     ],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
         assert_eq!(
@@ -144,7 +145,7 @@ mod tests {
                         }
                     ],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }
@@ -155,7 +156,7 @@ mod tests {
             patchy(&["gen-patch", "--help"]),
             Ok(Cli {
                 subcommand: Some(Subcommand::GenPatch(GenPatch { patches: vec![] })),
-                global_flag: GlobalFlag::Help,
+                help_or_version: HelpOrVersion::Help,
             })
         );
 
@@ -163,7 +164,7 @@ mod tests {
             patchy(&["gen-patch", "--version"]),
             Ok(Cli {
                 subcommand: Some(Subcommand::GenPatch(GenPatch { patches: vec![] })),
-                global_flag: GlobalFlag::Version,
+                help_or_version: HelpOrVersion::Version,
             })
         );
     }
@@ -225,7 +226,7 @@ mod tests {
                         }
                     ],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }

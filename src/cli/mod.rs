@@ -1,7 +1,7 @@
 use core::{error, fmt};
 use std::env;
 
-use flags::{Flag, GlobalFlag, LocalFlag};
+use flags::{Flag, HelpOrVersion, LocalFlag};
 
 mod branch_fetch;
 mod flags;
@@ -34,8 +34,8 @@ impl fmt::Display for CliParseError {
             CliParseError::MutuallyExclusiveFlags => write!(
                 f,
                 "Flags {} and {} are mutually exclusive, so they cannot be used together.",
-                GlobalFlag::Help,
-                GlobalFlag::Version
+                HelpOrVersion::Help,
+                HelpOrVersion::Version
             ),
             CliParseError::UnknownArgument(arg) => write!(f, "Unknown argument: {arg}"),
             CliParseError::EmptyArgument(arg) => write!(f, "Empty argument: {arg}"),
@@ -78,9 +78,11 @@ pub enum Subcommand {
 }
 
 trait SubCommand {
+    /// Once we know where the subcommand starts, hand off the parsing to a
+    /// helper struct
     fn parse<I: Iterator<Item = String>>(
         args: &mut I,
-        global_flag: &mut GlobalFlag,
+        global_flag: &mut HelpOrVersion,
     ) -> Result<Self, CliParseError>
     where
         Self: Sized;
@@ -89,7 +91,7 @@ trait SubCommand {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Cli {
     pub subcommand: Option<Subcommand>,
-    pub global_flag: GlobalFlag,
+    pub help_or_version: HelpOrVersion,
 }
 
 impl Cli {
@@ -103,14 +105,14 @@ impl Cli {
         // skip the name used to invoke Patchy, we don't care about that
         let _ = args.next();
 
-        let mut global_flag = GlobalFlag::None;
+        let mut global_flag = HelpOrVersion::None;
         let mut subcommand = None;
 
         // Process global flags before the subcommand
         let mut arg_queue = Vec::new();
 
         for arg in args.by_ref() {
-            if let Ok(flag) = arg.parse::<GlobalFlag>() {
+            if let Ok(flag) = arg.parse::<HelpOrVersion>() {
                 global_flag.validate(flag)?;
             } else if flags::is_flag(&arg) {
                 // only expect global flags until this point
@@ -141,25 +143,27 @@ impl Cli {
 
         Ok(Cli {
             subcommand,
-            global_flag,
+            help_or_version: global_flag,
         })
     }
 }
 
-/// Calls `patchy` with the given command line arguments
-#[cfg(test)]
-#[track_caller]
-fn patchy(args: &[&str]) -> Result<Cli, CliParseError> {
-    dbg!(args);
-    Cli::__parse(std::iter::once("patchy".to_owned()).chain(args.iter().map(ToString::to_string)))
-}
-
 #[cfg(test)]
 mod tests {
-    use gen_patch::Patch;
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    /// Calls `patchy` with the given command line arguments
+    #[track_caller]
+    pub fn patchy(args: &[&str]) -> Result<Cli, CliParseError> {
+        dbg!(args);
+        Cli::__parse(
+            // when we actually invoke the CLI command, the name used to invoke the process is also
+            // passed
+            std::iter::once("patchy".to_owned()).chain(args.iter().map(ToString::to_string)),
+        )
+    }
 
     #[test]
     fn global_flags() {
@@ -167,28 +171,28 @@ mod tests {
             patchy(&["--help"]),
             Ok(Cli {
                 subcommand: None,
-                global_flag: GlobalFlag::Help,
+                help_or_version: HelpOrVersion::Help,
             })
         );
         assert_eq!(
             patchy(&["-h"]),
             Ok(Cli {
                 subcommand: None,
-                global_flag: GlobalFlag::Help,
+                help_or_version: HelpOrVersion::Help,
             })
         );
         assert_eq!(
             patchy(&["--version"]),
             Ok(Cli {
                 subcommand: None,
-                global_flag: GlobalFlag::Version,
+                help_or_version: HelpOrVersion::Version,
             })
         );
         assert_eq!(
             patchy(&["-v"]),
             Ok(Cli {
                 subcommand: None,
-                global_flag: GlobalFlag::Version,
+                help_or_version: HelpOrVersion::Version,
             })
         );
     }
@@ -239,7 +243,7 @@ mod tests {
             patchy(&[]),
             Ok(Cli {
                 subcommand: None,
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }

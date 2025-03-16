@@ -1,4 +1,4 @@
-use super::{CliParseError, GlobalFlag, LocalFlag, SubCommand};
+use super::{CliParseError, HelpOrVersion, LocalFlag, SubCommand};
 
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Branch {
@@ -20,12 +20,12 @@ pub struct BranchFetch {
 impl SubCommand for BranchFetch {
     fn parse<I: Iterator<Item = String>>(
         args: &mut I,
-        global_flag: &mut GlobalFlag,
+        global_flag: &mut HelpOrVersion,
     ) -> Result<Self, CliParseError> {
         let mut branches: Vec<Branch> = vec![];
 
         for arg in args.by_ref() {
-            if let Ok(flag) = arg.parse::<GlobalFlag>() {
+            if let Ok(flag) = arg.parse::<HelpOrVersion>() {
                 global_flag.validate(flag)?;
                 continue;
             }
@@ -74,7 +74,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::cli::{Cli, Subcommand, patchy};
+    use crate::cli::tests::patchy;
+    use crate::cli::{Cli, Subcommand};
 
     #[test]
     fn single_branch() {
@@ -89,7 +90,7 @@ mod tests {
                         commit: None,
                     }],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }
@@ -119,7 +120,7 @@ mod tests {
                         }
                     ],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }
@@ -137,7 +138,7 @@ mod tests {
                         commit: Some("6049f20".to_owned()),
                     }],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }
@@ -174,7 +175,7 @@ mod tests {
                         }
                     ],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }
@@ -192,7 +193,7 @@ mod tests {
                         commit: Some("commit@extra".to_owned()),
                     },],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }
@@ -203,7 +204,7 @@ mod tests {
             patchy(&["branch-fetch", "--help"]),
             Ok(Cli {
                 subcommand: Some(Subcommand::BranchFetch(BranchFetch { branches: vec![] })),
-                global_flag: GlobalFlag::Help,
+                help_or_version: HelpOrVersion::Help,
             })
         );
 
@@ -211,7 +212,7 @@ mod tests {
             patchy(&["branch-fetch", "--version"]),
             Ok(Cli {
                 subcommand: Some(Subcommand::BranchFetch(BranchFetch { branches: vec![] })),
-                global_flag: GlobalFlag::Version,
+                help_or_version: HelpOrVersion::Version,
             })
         );
     }
