@@ -30,7 +30,7 @@ pub fn files(config_files: ReadDir) -> anyhow::Result<Vec<(OsString, File, Strin
     Ok(backups)
 }
 pub fn restore(file_name: &OsString, contents: &str) -> anyhow::Result<()> {
-    let path = GIT_ROOT.join(PathBuf::from(CONFIG_ROOT).join(file_name));
+    let path = GIT_ROOT.join(PathBuf::from(CONFIG_ROOT.as_str()).join(file_name));
     let mut file = File::create(&path)?;
 
     write!(file, "{contents}")?;

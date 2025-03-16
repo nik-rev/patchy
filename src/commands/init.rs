@@ -9,7 +9,7 @@ use crate::{CONFIG_FILE, CONFIG_ROOT, confirm_prompt, success};
 pub fn init() -> anyhow::Result<()> {
     let example_config = include_bytes!("../../example-config.toml");
 
-    let config_path = GIT_ROOT.join(CONFIG_ROOT);
+    let config_path = GIT_ROOT.join(CONFIG_ROOT.as_str());
 
     let config_file_path = config_path.join(CONFIG_FILE);
 

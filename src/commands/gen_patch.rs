@@ -6,7 +6,7 @@ use crate::utils::normalize_commit_msg;
 use crate::{CONFIG_ROOT, fail, success};
 
 pub fn gen_patch(args: GenPatch) -> anyhow::Result<()> {
-    let config_path = GIT_ROOT.join(CONFIG_ROOT);
+    let config_path = GIT_ROOT.join(CONFIG_ROOT.as_str());
 
     if !config_path.exists() {
         success!(

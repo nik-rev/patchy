@@ -37,12 +37,15 @@ pub fn parse_if_maybe_hash(input: &str, syntax: &str) -> (String, Option<Commit>
 pub async fn run(args: Run) -> anyhow::Result<()> {
     println!();
 
-    let config_path = GIT_ROOT.join(CONFIG_ROOT);
+    let config_path = GIT_ROOT.join(CONFIG_ROOT.as_str());
 
     let config_file_path = config_path.join(CONFIG_FILE);
 
     let Ok(config_raw) = fs::read_to_string(config_file_path.clone()) else {
-        fail!("Could not find configuration file at {CONFIG_ROOT}/{CONFIG_FILE}");
+        fail!(
+            "Could not find configuration file at {}/{CONFIG_FILE}",
+            CONFIG_ROOT.as_str()
+        );
 
         // We don't want to have *any* sort of prompt when using the -y flag since that
         // would be problematic in scripts
@@ -76,7 +79,10 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
     log::trace!("Using configuration file {config_file_path:?}");
 
     let config = toml::from_str::<Configuration>(&config_raw).map_err(|err| {
-        anyhow!("Could not parse `{CONFIG_ROOT}/{CONFIG_FILE}` configuration file:\n{err}")
+        anyhow!(
+            "Could not parse `{}/{CONFIG_FILE}` configuration file:\n{err}",
+            CONFIG_ROOT.as_str()
+        )
     })?;
 
     let (remote_branch, commit_hash) = parse_if_maybe_hash(&config.remote_branch, " @ ");
@@ -176,7 +182,7 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
         }
     }
 
-    if let Err(err) = fs::create_dir_all(GIT_ROOT.join(CONFIG_ROOT)) {
+    if let Err(err) = fs::create_dir_all(GIT_ROOT.join(CONFIG_ROOT.as_str())) {
         GIT(&["checkout", &previous_branch])?;
 
         clean_up_remote(
@@ -184,7 +190,10 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
             &info.branch.local_branch_name,
         )?;
 
-        return Err(anyhow!("Could not create directory {CONFIG_ROOT}\n{err}"));
+        return Err(anyhow!(
+            "Could not create directory {}\n{err}",
+            CONFIG_ROOT.as_str()
+        ));
     };
 
     for (file_name, _file, contents) in &backed_up_files {
@@ -193,7 +202,9 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
 
     // apply patches if they exist
     for patch in config.patches {
-        let file_name = GIT_ROOT.join(CONFIG_ROOT).join(format!("{patch}.patch"));
+        let file_name = GIT_ROOT
+            .join(CONFIG_ROOT.as_str())
+            .join(format!("{patch}.patch"));
         if !file_name.exists() {
             fail!("Could not find patch {patch}, skipping");
             continue;
@@ -216,7 +227,7 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
         );
     }
 
-    GIT(&["add", CONFIG_ROOT])?;
+    GIT(&["add", CONFIG_ROOT.as_str()])?;
     GIT(&[
         "commit",
         "--message",
