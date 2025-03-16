@@ -1,7 +1,11 @@
+use documented::{Documented, DocumentedFields};
+
 use super::{CliParseError, Flag, HelpOrVersion, LocalFlag, SubCommand};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+/// Start patchy
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Documented, DocumentedFields)]
 pub struct Run {
+    /// Do not prompt when overwriting local-branch specified in the config
     pub yes: bool,
 }
 

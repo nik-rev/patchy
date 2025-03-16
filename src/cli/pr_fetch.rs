@@ -1,19 +1,27 @@
+use documented::{Documented, DocumentedFields};
+
 use super::{CliParseError, Flag, HelpOrVersion, LocalFlag, SubCommand};
 
-#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
+/// A pull request
+#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Documented, DocumentedFields)]
 pub struct Pr {
     /// Fetch PR of this number
     pub number: u32,
     /// When fetching this PR, reset to this commit
     pub commit: Option<String>,
-    /// When fetching this PR, rename the branch fetched to this string
+    /// Choose local name for the branch belonging to the preceding pull request
     pub custom_branch_name: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+/// Fetch pull request for a GitHub repository as a local branch
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Documented, DocumentedFields)]
 pub struct PrFetch {
+    /// Check out the branch belonging to the first pull request
     pub checkout: bool,
+    /// Choose a github repository, using the `origin` remote of the current
+    /// repository by default
     pub repo_name: Option<String>,
+    /// A list of pull requests to fetch
     pub prs: Vec<Pr>,
 }
 
