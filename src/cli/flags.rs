@@ -65,34 +65,35 @@ impl fmt::Display for LocalFlag {
 }
 
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-pub enum GlobalFlag {
+pub enum HelpOrVersion {
     Help,
     Version,
     #[default]
     None,
 }
 
-impl GlobalFlag {
+impl HelpOrVersion {
     /// Validate a global flag and make sure that it doesn't conflict with
     /// existing global flags
-    pub fn validate(&mut self, new_flag: GlobalFlag) -> Result<(), CliParseError> {
+    pub fn validate(&mut self, new_flag: HelpOrVersion) -> Result<(), CliParseError> {
         match (&self, new_flag) {
             // No existing flag, take the new one
-            (GlobalFlag::None, flag) => {
+            (HelpOrVersion::None, flag) => {
                 *self = flag;
                 Ok(())
             },
 
             // Same flag already set
-            (GlobalFlag::Help, GlobalFlag::Help) => Err(CliParseError::DuplicateFlag(
-                Flag::GlobalFlag(GlobalFlag::Help),
+            (HelpOrVersion::Help, HelpOrVersion::Help) => Err(CliParseError::DuplicateFlag(
+                Flag::GlobalFlag(HelpOrVersion::Help),
             )),
-            (GlobalFlag::Version, GlobalFlag::Version) => Err(CliParseError::DuplicateFlag(
-                Flag::GlobalFlag(GlobalFlag::Version),
+            (HelpOrVersion::Version, HelpOrVersion::Version) => Err(CliParseError::DuplicateFlag(
+                Flag::GlobalFlag(HelpOrVersion::Version),
             )),
 
             // Conflicting flags
-            (GlobalFlag::Help, GlobalFlag::Version) | (GlobalFlag::Version, GlobalFlag::Help) => {
+            (HelpOrVersion::Help, HelpOrVersion::Version)
+            | (HelpOrVersion::Version, HelpOrVersion::Help) => {
                 Err(CliParseError::MutuallyExclusiveFlags)
             },
 
@@ -105,26 +106,26 @@ impl GlobalFlag {
     }
 }
 
-impl FromStr for GlobalFlag {
+impl FromStr for HelpOrVersion {
     type Err = ();
 
     fn from_str(arg: &str) -> Result<Self, Self::Err> {
         if flags::HELP_FLAGS.contains(&arg) {
-            Ok(GlobalFlag::Help)
+            Ok(HelpOrVersion::Help)
         } else if flags::VERSION_FLAGS.contains(&arg) {
-            Ok(GlobalFlag::Version)
+            Ok(HelpOrVersion::Version)
         } else {
             Err(())
         }
     }
 }
 
-impl fmt::Display for GlobalFlag {
+impl fmt::Display for HelpOrVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GlobalFlag::Help => write!(f, "{}", flags::HELP_FLAGS[1]),
-            GlobalFlag::Version => write!(f, "{}", flags::VERSION_FLAGS[1]),
-            GlobalFlag::None => write!(f, "<no flag>"),
+            HelpOrVersion::Help => write!(f, "{}", flags::HELP_FLAGS[1]),
+            HelpOrVersion::Version => write!(f, "{}", flags::VERSION_FLAGS[1]),
+            HelpOrVersion::None => write!(f, "<no flag>"),
         }
     }
 }
@@ -132,7 +133,7 @@ impl fmt::Display for GlobalFlag {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Flag {
     LocalFlag(LocalFlag),
-    GlobalFlag(GlobalFlag),
+    GlobalFlag(HelpOrVersion),
 }
 
 impl fmt::Display for Flag {

@@ -1,4 +1,4 @@
-use super::{CliParseError, Flag, GlobalFlag, LocalFlag, SubCommand};
+use super::{CliParseError, Flag, HelpOrVersion, LocalFlag, SubCommand};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Run {
@@ -8,12 +8,12 @@ pub struct Run {
 impl SubCommand for Run {
     fn parse<I: Iterator<Item = String>>(
         args: &mut I,
-        global_flag: &mut GlobalFlag,
+        global_flag: &mut HelpOrVersion,
     ) -> Result<Self, CliParseError> {
         let mut yes = false;
 
         for arg in args.by_ref() {
-            if let Ok(flag) = arg.parse::<GlobalFlag>() {
+            if let Ok(flag) = arg.parse::<HelpOrVersion>() {
                 global_flag.validate(flag)?;
                 continue;
             }
@@ -39,7 +39,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::cli::{Cli, Subcommand, patchy};
+    use crate::cli::tests::patchy;
+    use crate::cli::{Cli, Subcommand};
 
     #[test]
     fn valid() {
@@ -47,63 +48,63 @@ mod tests {
             patchy(&["run"]),
             Ok(Cli {
                 subcommand: Some(Subcommand::Run(Run { yes: false })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
         assert_eq!(
             patchy(&["run", "--help"]),
             Ok(Cli {
                 subcommand: Some(Subcommand::Run(Run { yes: false })),
-                global_flag: GlobalFlag::Help,
+                help_or_version: HelpOrVersion::Help,
             })
         );
         assert_eq!(
             patchy(&["run", "-h"]),
             Ok(Cli {
                 subcommand: Some(Subcommand::Run(Run { yes: false })),
-                global_flag: GlobalFlag::Help,
+                help_or_version: HelpOrVersion::Help,
             })
         );
         assert_eq!(
             patchy(&["run", "--version"]),
             Ok(Cli {
                 subcommand: Some(Subcommand::Run(Run { yes: false })),
-                global_flag: GlobalFlag::Version,
+                help_or_version: HelpOrVersion::Version,
             })
         );
         assert_eq!(
             patchy(&["run", "-v"]),
             Ok(Cli {
                 subcommand: Some(Subcommand::Run(Run { yes: false })),
-                global_flag: GlobalFlag::Version,
+                help_or_version: HelpOrVersion::Version,
             })
         );
         assert_eq!(
             patchy(&["run", "--yes"]),
             Ok(Cli {
                 subcommand: Some(Subcommand::Run(Run { yes: true })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
         assert_eq!(
             patchy(&["run", "-y"]),
             Ok(Cli {
                 subcommand: Some(Subcommand::Run(Run { yes: true })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
         assert_eq!(
             patchy(&["--help", "run"]),
             Ok(Cli {
                 subcommand: Some(Subcommand::Run(Run { yes: false })),
-                global_flag: GlobalFlag::Help,
+                help_or_version: HelpOrVersion::Help,
             })
         );
         assert_eq!(
             patchy(&["--version", "run"]),
             Ok(Cli {
                 subcommand: Some(Subcommand::Run(Run { yes: false })),
-                global_flag: GlobalFlag::Version,
+                help_or_version: HelpOrVersion::Version,
             })
         );
     }

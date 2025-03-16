@@ -1,4 +1,4 @@
-use super::{CliParseError, Flag, GlobalFlag, LocalFlag, SubCommand};
+use super::{CliParseError, Flag, HelpOrVersion, LocalFlag, SubCommand};
 
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Pr {
@@ -20,14 +20,14 @@ pub struct PrFetch {
 impl SubCommand for PrFetch {
     fn parse<I: Iterator<Item = String>>(
         args: &mut I,
-        global_flag: &mut GlobalFlag,
+        global_flag: &mut HelpOrVersion,
     ) -> Result<Self, CliParseError> {
         let mut prs: Vec<Pr> = vec![];
         let mut checkout = false;
         let mut repo_name = None;
 
         for arg in args.by_ref() {
-            if let Ok(flag) = arg.parse::<GlobalFlag>() {
+            if let Ok(flag) = arg.parse::<HelpOrVersion>() {
                 global_flag.validate(flag)?;
                 continue;
             }
@@ -98,7 +98,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::cli::{Cli, Subcommand, patchy};
+    use crate::cli::tests::patchy;
+    use crate::cli::{Cli, Subcommand};
 
     #[test]
     fn single_pr() {
@@ -114,7 +115,7 @@ mod tests {
                         custom_branch_name: None,
                     }],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }
@@ -158,7 +159,7 @@ mod tests {
                         }
                     ],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
 
@@ -182,7 +183,7 @@ mod tests {
                         }
                     ],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }
@@ -213,7 +214,7 @@ mod tests {
                         }
                     ],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
 
@@ -229,7 +230,7 @@ mod tests {
                         custom_branch_name: None,
                     }],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }
@@ -248,7 +249,7 @@ mod tests {
                         custom_branch_name: None,
                     }],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
 
@@ -264,7 +265,7 @@ mod tests {
                         custom_branch_name: None,
                     }],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }
@@ -306,7 +307,7 @@ mod tests {
                         }
                     ],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }
@@ -321,7 +322,7 @@ mod tests {
                     repo_name: None,
                     prs: vec![],
                 })),
-                global_flag: GlobalFlag::Help,
+                help_or_version: HelpOrVersion::Help,
             })
         );
 
@@ -333,7 +334,7 @@ mod tests {
                     repo_name: None,
                     prs: vec![],
                 })),
-                global_flag: GlobalFlag::Version,
+                help_or_version: HelpOrVersion::Version,
             })
         );
     }
@@ -392,7 +393,7 @@ mod tests {
                         }
                     ],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }
@@ -428,7 +429,7 @@ mod tests {
                         }
                     ],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }
@@ -463,7 +464,7 @@ mod tests {
                         custom_branch_name: None,
                     }],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }
@@ -482,7 +483,7 @@ mod tests {
                         custom_branch_name: None,
                     }],
                 })),
-                global_flag: GlobalFlag::None,
+                help_or_version: HelpOrVersion::None,
             })
         );
     }

@@ -1,7 +1,7 @@
 use core::fmt;
 
 use cli::CliParseError;
-use colored::Colorize;
+use colored::Colorize as _;
 
 pub mod backup;
 pub mod cli;
