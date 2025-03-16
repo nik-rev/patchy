@@ -139,14 +139,6 @@ impl Cli {
             });
         }
 
-        // for arg in args {
-        //     if let Ok(flag) = arg.parse::<GlobalFlag>() {
-        //         global_flag.validate(flag)?;
-        //     } else {
-        //         return Err(CliParseError::UnknownArgument(arg));
-        //     }
-        // }
-
         Ok(Cli {
             subcommand,
             global_flag,
