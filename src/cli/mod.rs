@@ -13,6 +13,8 @@ pub mod run;
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CliParseError {
     UnexpectedFlag(LocalFlag),
+    // --checkout, but where exactly...? No source supplied.
+    CheckoutNoSource,
     UnknownFlag(String),
     InvalidArgument(String),
     InvalidRepo(String),
@@ -62,6 +64,11 @@ impl fmt::Display for CliParseError {
                 write!(f, "{pr} must be followed by a commit hash")
             },
             CliParseError::InvalidRepo(repo) => write!(f, "Invalid repo: {repo}"),
+            CliParseError::CheckoutNoSource => write!(
+                f,
+                "Expected at least 1 argument when using the {} flag",
+                LocalFlag::Checkout
+            ),
         }
     }
 }
