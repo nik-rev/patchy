@@ -30,9 +30,6 @@ jobs:
           git --version
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
-          git status
-          git tag
-          git describe
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
