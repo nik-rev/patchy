@@ -192,21 +192,21 @@ pub fn help(subcommand: Option<Subcommand>) -> String {
 
                 let example_1 = format!(
                     "{}
-                {}",
+    {}",
                     "11745".bright_green(),
                     format_description("Fetch a single pull request")
                 );
 
                 let example_2 = format!(
                     "{}
-                {}",
+    {}",
                     "11745 10000 9191 600".bright_green(),
                     format_description("Fetch several pull requests")
                 );
 
                 let example_3 = format!(
                     "{} {} {} {} {}
-                {}",
+    {}",
                     "11745 10000".bright_green(),
                     "--branch-name=some-pr".bright_magenta(),
                     "9191".bright_green(),
@@ -220,7 +220,7 @@ pub fn help(subcommand: Option<Subcommand>) -> String {
 
                 let example_4 = format!(
                     "{} {} {}
-                {}",
+    {}",
                     "--repo-name=helix-editor/helix".bright_magenta(),
                     "11745 10000 9191 600".bright_green(),
                     "--checkout".bright_magenta(),
@@ -234,7 +234,7 @@ pub fn help(subcommand: Option<Subcommand>) -> String {
 
                 let example_5 = format!(
                     "{}
-                {}",
+    {}",
                     "11745 10000@be8f264327f6ae729a0b372ef01f6fde49a78310 9191 \
                      600@5d10fa5beb917a0dbe0ef8441d14b3d0dd15227b"
                         .bright_green(),
@@ -288,13 +288,13 @@ pub fn help(subcommand: Option<Subcommand>) -> String {
 
                 let example_1 = format!(
                     "{}
-                {}",
+    {}",
                     "helix-editor/helix/master".bright_green(),
                     format_description("Fetch a single branch")
                 );
                 let example_2 = format!(
                     "{}
-                {}",
+    {}",
                     "'helix-editor/helix/master@6049f20'".bright_green(),
                     format_description("Fetch a single branch at a certain commit")
                 );
