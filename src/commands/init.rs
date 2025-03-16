@@ -4,7 +4,7 @@ use std::io::Write as _;
 use colored::Colorize as _;
 
 use crate::git_commands::GIT_ROOT;
-use crate::{CONFIG_FILE, CONFIG_ROOT, INDENT, confirm_prompt, success};
+use crate::{CONFIG_FILE, CONFIG_ROOT, confirm_prompt, success};
 
 pub fn init() -> anyhow::Result<()> {
     let example_config = include_bytes!("../../example-config.toml");
