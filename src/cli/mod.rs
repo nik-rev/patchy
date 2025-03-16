@@ -15,6 +15,7 @@ pub enum CliParseError {
     UnexpectedFlag(LocalFlag),
     UnknownFlag(String),
     InvalidArgument(String),
+    InvalidRepo(String),
     DuplicateFlag(Flag),
     MutuallyExclusiveFlags,
     UnknownArgument(String),
@@ -60,6 +61,7 @@ impl fmt::Display for CliParseError {
             CliParseError::EmptyCommitHash(pr) => {
                 write!(f, "{pr} must be followed by a commit hash")
             },
+            CliParseError::InvalidRepo(repo) => write!(f, "Invalid repo: {repo}"),
         }
     }
 }

@@ -2,6 +2,10 @@ use super::{CliParseError, GlobalFlag, LocalFlag, SubCommand};
 
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Branch {
+    /// Name of the GitHub owner of the repository
+    pub repo_owner: String,
+    /// Name of the repository this branch belongs to
+    pub repo_name: String,
     /// Name of this branch in the remote
     pub name: String,
     /// When fetching this PR, reset to this commit
@@ -45,7 +49,17 @@ impl SubCommand for BranchFetch {
                 None => (arg.as_str(), None),
             };
 
+            let Some((repo_owner, repo_name_and_branch_name)) = branch_name.split_once('/') else {
+                return Err(CliParseError::InvalidRepo(branch_name.to_owned()));
+            };
+
+            let Some((repo_name, branch_name)) = repo_name_and_branch_name.split_once('/') else {
+                return Err(CliParseError::InvalidRepo(branch_name.to_owned()));
+            };
+
             branches.push(Branch {
+                repo_owner: repo_owner.to_owned(),
+                repo_name: repo_name.to_owned(),
                 name: branch_name.to_owned(),
                 commit: commit.map(ToOwned::to_owned),
             });
@@ -69,7 +83,9 @@ mod tests {
             Ok(Cli {
                 subcommand: Some(Subcommand::BranchFetch(BranchFetch {
                     branches: vec![Branch {
-                        name: "helix-editor/helix/master".to_owned(),
+                        repo_owner: "helix-editor".to_owned(),
+                        repo_name: "helix".to_owned(),
+                        name: "master".to_owned(),
                         commit: None,
                     }],
                 })),
@@ -90,11 +106,15 @@ mod tests {
                 subcommand: Some(Subcommand::BranchFetch(BranchFetch {
                     branches: vec![
                         Branch {
-                            name: "helix-editor/helix/master".to_owned(),
+                            repo_owner: "helix-editor".to_owned(),
+                            repo_name: "helix".to_owned(),
+                            name: "master".to_owned(),
                             commit: None,
                         },
                         Branch {
-                            name: "helix-editor/helix/develop".to_owned(),
+                            repo_owner: "helix-editor".to_owned(),
+                            repo_name: "helix".to_owned(),
+                            name: "develop".to_owned(),
                             commit: None,
                         }
                     ],
@@ -111,7 +131,9 @@ mod tests {
             Ok(Cli {
                 subcommand: Some(Subcommand::BranchFetch(BranchFetch {
                     branches: vec![Branch {
-                        name: "helix-editor/helix/master".to_owned(),
+                        repo_owner: "helix-editor".to_owned(),
+                        repo_name: "helix".to_owned(),
+                        name: "master".to_owned(),
                         commit: Some("6049f20".to_owned()),
                     }],
                 })),
@@ -133,15 +155,21 @@ mod tests {
                 subcommand: Some(Subcommand::BranchFetch(BranchFetch {
                     branches: vec![
                         Branch {
-                            name: "helix-editor/helix/master".to_owned(),
+                            repo_owner: "helix-editor".to_owned(),
+                            repo_name: "helix".to_owned(),
+                            name: "master".to_owned(),
                             commit: Some("6049f20".to_owned()),
                         },
                         Branch {
-                            name: "helix-editor/helix/develop".to_owned(),
+                            repo_owner: "helix-editor".to_owned(),
+                            repo_name: "helix".to_owned(),
+                            name: "develop".to_owned(),
                             commit: None,
                         },
                         Branch {
-                            name: "helix-editor/helix/feature".to_owned(),
+                            repo_owner: "helix-editor".to_owned(),
+                            repo_name: "helix".to_owned(),
+                            name: "feature".to_owned(),
                             commit: Some("abc123".to_owned()),
                         }
                     ],
@@ -154,11 +182,13 @@ mod tests {
     #[test]
     fn multiple_at_in_branch_name() {
         assert_eq!(
-            patchy(&["branch-fetch", "repo/branch@commit@extra"]),
+            patchy(&["branch-fetch", "owner/repo/branch@commit@extra"]),
             Ok(Cli {
                 subcommand: Some(Subcommand::BranchFetch(BranchFetch {
                     branches: vec![Branch {
-                        name: "repo/branch".to_owned(),
+                        repo_owner: "owner".to_owned(),
+                        repo_name: "repo".to_owned(),
+                        name: "branch".to_owned(),
                         commit: Some("commit@extra".to_owned()),
                     },],
                 })),

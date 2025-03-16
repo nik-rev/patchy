@@ -1,14 +1,14 @@
+use std::error::Error;
+use std::{env, process};
+
 use colored::Colorize as _;
 use patchy::cli::{self, Cli, Subcommand};
 use patchy::commands::branch_fetch::branch_fetch;
 use patchy::commands::help::{HELP_FLAG, VERSION_FLAG};
 use patchy::commands::{gen_patch, help, init, pr_fetch, run};
-use patchy::fail;
-use reqwest::ClientBuilder;
-use std::error::Error;
-use std::{env, process};
-
 use patchy::types::CommandArgs;
+use patchy::{PatchyError, fail};
+use reqwest::ClientBuilder;
 
 async fn process_subcommand(subcommand: &str, args: CommandArgs) -> Result<(), Box<dyn Error>> {
     match subcommand {
@@ -37,8 +37,14 @@ async fn process_subcommand(subcommand: &str, args: CommandArgs) -> Result<(), B
             }
 
             help(None)?;
-        }
+        },
     }
+
+    Ok(())
+}
+
+async fn main_impl() -> Result<(), PatchyError> {
+    let args = Cli::parse().map_err(PatchyError::CliParseError)?;
 
     Ok(())
 }
@@ -82,7 +88,7 @@ async fn main() -> anyhow::Result<()> {
             Err(msg) => {
                 fail!("{msg}");
                 process::exit(1);
-            }
+            },
         }
     }
 }
