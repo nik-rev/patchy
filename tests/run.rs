@@ -9,6 +9,12 @@ use tempfile::{TempDir, tempdir};
 fn initialize(repository: &str, branch: &str, pull_requests: &[&str], patches: &[&str]) -> TempDir {
     let temp_dir = tempdir().expect("tempdir failed");
 
+    Command::new("git")
+        .args(["init"])
+        .current_dir(temp_dir.path())
+        .output()
+        .expect("git init failed");
+
     copy_dir("tests/fixtures/patches", temp_dir.path().join(".patchy")).expect("copy_dir failed");
 
     std::fs::write(
