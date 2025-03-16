@@ -24,6 +24,7 @@ pub enum CliParseError {
     UnknownSubcommand(String),
     EmptyArgument(String),
     EmptyCommitHash(String),
+    InvalidCommitHash(String),
     PatchFilenameInvalidPosition(String),
     BranchNameInvalidPosition(String),
 }
@@ -69,6 +70,9 @@ impl fmt::Display for CliParseError {
                 "Expected at least 1 argument when using the {} flag",
                 LocalFlag::Checkout
             ),
+            CliParseError::InvalidCommitHash(commit) => {
+                write!(f, "{commit} is not a valid commit hash")
+            },
         }
     }
 }

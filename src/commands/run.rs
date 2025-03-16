@@ -7,8 +7,8 @@ use crate::backup::{files, restore};
 use crate::cli::run::Run;
 use crate::commands::pr_fetch::ignore_octothorpe;
 use crate::git_commands::{
-    GIT, GIT_ROOT, add_remote_branch, checkout_from_remote, clean_up_remote, fetch_pull_request,
-    merge_pull_request,
+    Commit, GIT, GIT_ROOT, add_remote_branch, checkout_from_remote, clean_up_remote,
+    fetch_pull_request, merge_pull_request,
 };
 use crate::types::{Branch, BranchAndRemote, Configuration, Remote};
 use crate::utils::{display_link, with_uuid};
@@ -17,7 +17,7 @@ use crate::{APP_NAME, CONFIG_FILE, CONFIG_ROOT, commands, confirm_prompt, fail, 
 /// Parses user inputs of the form `<head><syntax><commit-hash>`
 ///
 /// Returns the user's input but also the commit hash if it exists
-pub fn parse_if_maybe_hash(input: &str, syntax: &str) -> (String, Option<String>) {
+pub fn parse_if_maybe_hash(input: &str, syntax: &str) -> (String, Option<Commit>) {
     let parts: Vec<_> = input.split(syntax).collect();
 
     let len = parts.len();
@@ -29,7 +29,7 @@ pub fn parse_if_maybe_hash(input: &str, syntax: &str) -> (String, Option<String>
     } else {
         // They want to use a specific commit
         let output: String = parts[0..len - 1].iter().map(|s| String::from(*s)).collect();
-        let commit_hash: Option<String> = Some(parts[len - 1].into());
+        let commit_hash = Commit::parse(parts[len - 1].to_owned()).ok();
         (output, commit_hash)
     }
 }
@@ -113,7 +113,7 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
         },
     };
 
-    add_remote_branch(&info, commit_hash.as_deref())?;
+    add_remote_branch(&info, commit_hash.as_ref())?;
 
     let previous_branch = checkout_from_remote(
         &info.branch.local_branch_name,
@@ -136,8 +136,7 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
             let pull_request = ignore_octothorpe(pull_request);
             let (pull_request, commit_hash) = parse_if_maybe_hash(&pull_request, " @ ");
             // TODO: refactor this to not use such deep nesting
-            match fetch_pull_request(&config.repo, &pull_request, None, commit_hash.as_deref())
-                .await
+            match fetch_pull_request(&config.repo, &pull_request, None, commit_hash.as_ref()).await
             {
                 Ok((response, info)) => {
                     match merge_pull_request(

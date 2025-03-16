@@ -44,6 +44,7 @@ once_cell = "1.17"
 documented = "0.9"
 log = "0.4"
 env_logger = "0.11"
+nutype = "0.6"
 
 [dev-dependencies]
 pretty_assertions = "1.4"

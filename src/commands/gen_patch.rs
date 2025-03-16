@@ -5,9 +5,6 @@ use crate::git_commands::{GIT, GIT_ROOT};
 use crate::utils::normalize_commit_msg;
 use crate::{CONFIG_ROOT, fail, success};
 
-// pub static GEN_PATCH_FLAGS: &[&Flag<'static>; 3] =
-//     &[&GEN_PATCH_NAME_FLAG, &HELP_FLAG, &VERSION_FLAG];
-
 pub fn gen_patch(args: GenPatch) -> anyhow::Result<()> {
     let config_path = GIT_ROOT.join(CONFIG_ROOT);
 

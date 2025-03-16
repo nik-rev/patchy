@@ -2,8 +2,9 @@ use documented::{Documented, DocumentedFields};
 
 use super::flags::CliFlag;
 use super::{CliParseError, Flag, HelpOrVersion, LocalFlag, SubCommand};
+use crate::git_commands::Commit;
 
-/// A branch
+/// Represents a single branch
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Documented, DocumentedFields)]
 pub struct Branch {
     /// Name of the GitHub owner of the repository
@@ -13,7 +14,7 @@ pub struct Branch {
     /// Name of this branch in the remote
     pub name: String,
     /// When fetching this PR, reset to this commit
-    pub commit: Option<String>,
+    pub commit: Option<Commit>,
 }
 
 /// Fetch branches for a GitHub repository as a local branch
@@ -54,7 +55,7 @@ impl SubCommand for BranchFetch {
                 continue;
             }
 
-            match dbg!(LocalFlag::parse(&arg)?) {
+            match LocalFlag::parse(&arg)? {
                 Some(flag @ LocalFlag::Checkout) => {
                     if checkout {
                         return Err(CliParseError::DuplicateFlag(Flag::LocalFlag(flag)));
@@ -78,6 +79,8 @@ impl SubCommand for BranchFetch {
                 None => (arg.as_str(), None),
             };
 
+            let commit = commit.map(|s| Commit::parse(s.to_owned())).transpose()?;
+
             let Some((repo_owner, repo_name_and_branch_name)) = branch_name.split_once('/') else {
                 return Err(CliParseError::InvalidRepo(branch_name.to_owned()));
             };
@@ -90,7 +93,7 @@ impl SubCommand for BranchFetch {
                 repo_owner: repo_owner.to_owned(),
                 repo_name: repo_name.to_owned(),
                 name: branch_name.to_owned(),
-                commit: commit.map(ToOwned::to_owned),
+                commit,
             });
         }
 
@@ -199,7 +202,7 @@ mod tests {
                         repo_owner: "helix-editor".to_owned(),
                         repo_name: "helix".to_owned(),
                         name: "master".to_owned(),
-                        commit: Some("6049f20".to_owned()),
+                        commit: Some(Commit::parse("6049f20".to_owned()).unwrap()),
                     }],
                     checkout: false,
                 })),
@@ -224,7 +227,7 @@ mod tests {
                             repo_owner: "helix-editor".to_owned(),
                             repo_name: "helix".to_owned(),
                             name: "master".to_owned(),
-                            commit: Some("6049f20".to_owned()),
+                            commit: Some(Commit::parse("6049f20".to_owned()).unwrap()),
                         },
                         Branch {
                             repo_owner: "helix-editor".to_owned(),
@@ -236,33 +239,10 @@ mod tests {
                             repo_owner: "helix-editor".to_owned(),
                             repo_name: "helix".to_owned(),
                             name: "feature".to_owned(),
-                            commit: Some("abc123".to_owned()),
+                            commit: Some(Commit::parse("abc123".to_owned()).unwrap()),
                         }
                     ],
                     checkout: false,
-                })),
-                help_or_version: HelpOrVersion::None,
-            })
-        );
-    }
-
-    #[test]
-    fn multiple_at_in_branch_name() {
-        assert_eq!(
-            patchy(&[
-                "branch-fetch",
-                "owner/repo/branch@commit@extra",
-                "--checkout"
-            ]),
-            Ok(Cli {
-                subcommand: Some(Subcommand::BranchFetch(BranchFetch {
-                    branches: vec![Branch {
-                        repo_owner: "owner".to_owned(),
-                        repo_name: "repo".to_owned(),
-                        name: "branch".to_owned(),
-                        commit: Some("commit@extra".to_owned()),
-                    },],
-                    checkout: true,
                 })),
                 help_or_version: HelpOrVersion::None,
             })

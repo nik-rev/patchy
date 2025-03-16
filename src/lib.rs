@@ -10,6 +10,7 @@ pub mod git_commands;
 pub mod types;
 pub mod utils;
 
+/// Represents errors that can be thrown by this App
 #[derive(Debug)]
 pub enum PatchyError {
     CliParseError(CliParseError),
@@ -29,6 +30,6 @@ impl fmt::Display for PatchyError {
 
 impl std::error::Error for PatchyError {}
 
-pub static CONFIG_ROOT: &str = ".patchy";
-pub static CONFIG_FILE: &str = "config.toml";
-pub static APP_NAME: &str = "patchy";
+pub const CONFIG_ROOT: &str = ".patchy";
+pub const CONFIG_FILE: &str = "config.toml";
+pub const APP_NAME: &str = "patchy";

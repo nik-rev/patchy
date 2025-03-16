@@ -2,6 +2,7 @@ use documented::{Documented, DocumentedFields};
 
 use super::flags::CliFlag;
 use super::{CliParseError, Flag, HelpOrVersion, LocalFlag, SubCommand};
+use crate::git_commands::Commit;
 
 /// A pull request
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Documented, DocumentedFields)]
@@ -9,7 +10,7 @@ pub struct Pr {
     /// Fetch PR of this number
     pub number: u32,
     /// When fetching this PR, reset to this commit
-    pub commit: Option<String>,
+    pub commit: Option<Commit>,
     /// Choose local name for the branch belonging to the preceding pull request
     pub custom_branch_name: Option<String>,
 }
@@ -108,9 +109,10 @@ impl SubCommand for PrFetch {
                         },
                         None => (parse_pr(&arg)?, None),
                     };
+                    let commit = commit.map(|c| Commit::parse(c.to_owned())).transpose()?;
                     prs.push(Pr {
                         number: pr_number,
-                        commit: commit.map(ToOwned::to_owned),
+                        commit,
                         custom_branch_name: None,
                     });
                 },
@@ -328,7 +330,12 @@ mod tests {
                         },
                         Pr {
                             number: 10000,
-                            commit: Some("be8f264327f6ae729a0b372ef01f6fde49a78310".to_owned()),
+                            commit: Some(
+                                Commit::parse(
+                                    "be8f264327f6ae729a0b372ef01f6fde49a78310".to_owned()
+                                )
+                                .unwrap()
+                            ),
                             custom_branch_name: None,
                         },
                         Pr {
@@ -338,7 +345,12 @@ mod tests {
                         },
                         Pr {
                             number: 600,
-                            commit: Some("5d10fa5beb917a0dbe0ef8441d14b3d0dd15227b".to_owned()),
+                            commit: Some(
+                                Commit::parse(
+                                    "5d10fa5beb917a0dbe0ef8441d14b3d0dd15227b".to_owned()
+                                )
+                                .unwrap()
+                            ),
                             custom_branch_name: None,
                         }
                     ],
@@ -424,7 +436,12 @@ mod tests {
                         },
                         Pr {
                             number: 10000,
-                            commit: Some("be8f264327f6ae729a0b372ef01f6fde49a78310".to_owned()),
+                            commit: Some(
+                                Commit::parse(
+                                    "be8f264327f6ae729a0b372ef01f6fde49a78310".to_owned()
+                                )
+                                .unwrap()
+                            ),
                             custom_branch_name: Some("custom-branch".to_owned()),
                         }
                     ],
@@ -532,13 +549,11 @@ mod tests {
         );
     }
 
-    // TODO: when we start validating commit hash
     #[test]
-    #[ignore]
     fn invalid_commit_hash() {
         assert_eq!(
             patchy(&["pr-fetch", "123@xyz!"]),
-            Err(CliParseError::InvalidArgument("123@xyz!".to_owned()))
+            Err(CliParseError::InvalidCommitHash("xyz!".to_owned()))
         );
     }
 

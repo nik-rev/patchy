@@ -1,3 +1,5 @@
+//! Backup files that we are about to override, to make sure the user does not
+//! lose any work
 use std::ffi::OsString;
 use std::fs::{File, ReadDir, read_to_string};
 use std::io::Write as _;

@@ -46,7 +46,7 @@ pub async fn pr_fetch(mut args: PrFetch) -> anyhow::Result<()> {
             // TODO: make fetch_pull_request accept a u32 instead
             &pull_request_number.to_string(),
             custom_branch_name.as_deref(),
-            commit.as_deref(),
+            commit.as_ref(),
         )
         .await
         {
@@ -66,7 +66,10 @@ pub async fn pr_fetch(mut args: PrFetch) -> anyhow::Result<()> {
                     info.branch.local_branch_name.bright_cyan(),
                     commit
                         .clone()
-                        .map(|commit_hash| format!(", at commit {}", commit_hash.bright_yellow()))
+                        .map(|commit_hash| format!(
+                            ", at commit {}",
+                            commit_hash.as_ref().bright_yellow()
+                        ))
                         .unwrap_or_default()
                 );
 
