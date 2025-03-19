@@ -150,7 +150,7 @@ Install the binary directly into your system, available for macOS and Linux.
 Recommended for Linux users.
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/nik-rev/patchy/releases/latest/download/patchy-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/nik-rev/patchy/releases/latest/download/patchy-bin-installer.sh | sh
 ```
 
 ### Homebrew
