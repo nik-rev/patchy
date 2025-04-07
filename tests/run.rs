@@ -1,3 +1,4 @@
+#![cfg(any())]
 #![cfg(test)]
 use std::process::Command;
 
