@@ -1,10 +1,9 @@
 #![cfg_attr(doc, doc = include_str!("../docs/README.md"))]
 use core::fmt;
-use std::env;
+use std::{env, sync::LazyLock};
 
 use cli::CliParseError;
 use colored::Colorize as _;
-use once_cell::sync::Lazy;
 
 pub mod backup;
 pub mod cli;
@@ -33,7 +32,7 @@ impl fmt::Display for PatchyError {
 
 impl std::error::Error for PatchyError {}
 
-pub static CONFIG_ROOT: Lazy<String> =
-    Lazy::new(|| env::var("PATCHY_CONFIG_ROOT").unwrap_or_else(|_| ".patchy".into()));
+pub static CONFIG_ROOT: LazyLock<String> =
+    LazyLock::new(|| env::var("PATCHY_CONFIG_ROOT").unwrap_or_else(|_| ".patchy".into()));
 pub const CONFIG_FILE: &str = "config.toml";
 pub const APP_NAME: &str = "patchy";

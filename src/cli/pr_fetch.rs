@@ -80,7 +80,7 @@ impl SubCommand for PrFetch {
                     }
                     if custom_repo_name.is_empty() {
                         return Err(CliParseError::EmptyArgument(arg.clone()));
-                    };
+                    }
                     repo_name = Some(custom_repo_name);
                 },
                 Some(LocalFlag::BranchName(custom_branch_name)) => {
@@ -104,7 +104,7 @@ impl SubCommand for PrFetch {
                         Some((pr_number, commit)) => {
                             if commit.is_empty() {
                                 return Err(CliParseError::EmptyCommitHash(arg.clone()));
-                            };
+                            }
                             (parse_pr(pr_number)?, Some(commit))
                         },
                         None => (parse_pr(&arg)?, None),

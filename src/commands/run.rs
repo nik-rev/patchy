@@ -59,7 +59,7 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
             if let Err(err) = commands::init() {
                 fail!("{err}");
                 process::exit(1);
-            };
+            }
         } else if args.yes {
             eprintln!(
                 "You can create it with {} {}",
@@ -170,13 +170,11 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
                         },
                         Err(err) => {
                             fail!("{err}");
-                            continue;
                         },
-                    };
+                    }
                 },
                 Err(err) => {
                     fail!("Could not fetch branch from remote\n{err}");
-                    continue;
                 },
             }
         }
@@ -194,7 +192,7 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
             "Could not create directory {}\n{err}",
             CONFIG_ROOT.as_str()
         ));
-    };
+    }
 
     for (file_name, _file, contents) in &backed_up_files {
         restore(file_name, contents).map_err(|err| anyhow!("Could not restore backups:\n{err}"))?;
@@ -213,7 +211,7 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
         if let Err(err) = GIT(&["am", "--keep-cr", "--signoff", &file_name.to_string_lossy()]) {
             GIT(&["am", "--abort"])?;
             return Err(anyhow!("Could not apply patch {patch}, skipping\n{err}"));
-        };
+        }
 
         let last_commit_message = GIT(&["log", "-1", "--format=%B"])?;
         success!(

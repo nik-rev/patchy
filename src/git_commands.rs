@@ -10,6 +10,7 @@
 )]
 use std::path::{Path, PathBuf};
 use std::process::{self, Output};
+use std::sync::LazyLock;
 use std::{env, io};
 
 use anyhow::{Result, anyhow};
@@ -88,13 +89,14 @@ pub fn get_git_root() -> anyhow::Result<PathBuf> {
     get_git_output(&root, &args).map(Into::into)
 }
 
-pub static GIT_ROOT: Lazy<PathBuf> = Lazy::new(|| match get_git_root() {
-    Ok(root) => root,
-    Err(err) => {
-        fail!("Failed to determine Git root directory.\n{err}");
-        process::exit(1)
-    },
-});
+pub static GIT_ROOT: std::sync::LazyLock<PathBuf> =
+    std::sync::LazyLock::new(|| match get_git_root() {
+        Ok(root) => root,
+        Err(err) => {
+            fail!("Failed to determine Git root directory.\n{err}");
+            process::exit(1)
+        },
+    });
 
 type Git = Lazy<Box<dyn Fn(&[&str]) -> Result<String> + Send + Sync>>;
 
@@ -105,7 +107,7 @@ pub static GIT: Git = Lazy::new(|| {
     })
 });
 
-pub static CLIENT: Lazy<Client> = Lazy::new(|| *Box::new(reqwest::Client::new()));
+pub static CLIENT: LazyLock<Client> = LazyLock::new(|| *Box::new(reqwest::Client::new()));
 
 /// Fetches a branch of a remote into local. Optionally accepts a commit hash
 /// for versioning.
@@ -167,7 +169,7 @@ pub fn add_remote_branch(
         })?;
 
         log::trace!("...and did a hard reset to commit {}", commit_hash.as_ref());
-    };
+    }
 
     Ok(())
 }
@@ -195,7 +197,7 @@ pub fn checkout_from_remote(branch: &str, remote: &str) -> anyhow::Result<String
         return Err(anyhow!(
             "Could not checkout branch: {branch}, which belongs to remote {remote}\n{err}"
         ));
-    };
+    }
 
     Ok(current_branch)
 }
@@ -210,7 +212,7 @@ pub fn merge_into_main(
         // nukes the worktree
         GIT(&["reset", "--hard"])?;
         return Err(anyhow!("Could not merge {remote_branch}\n{err}"));
-    };
+    }
 
     // --squash will NOT commit anything. So we need to make it manually
     GIT(&[

@@ -51,7 +51,7 @@ pub fn gen_patch(args: GenPatch) -> anyhow::Result<()> {
         ]) {
             fail!("Could not get patch output for patch {}\n{err}", commit);
             continue;
-        };
+        }
 
         success!(
             "Created patch file at {}",

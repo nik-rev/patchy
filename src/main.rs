@@ -1,5 +1,6 @@
 use core::error;
 use std::env;
+use std::process::ExitCode;
 
 use patchy::cli::flags::HelpOrVersion;
 use patchy::cli::{Cli, Subcommand};
@@ -15,7 +16,12 @@ async fn main_impl() -> Result<Option<String>, Box<dyn error::Error>> {
         HelpOrVersion::Version => {
             return Ok(Some(env!("CARGO_PKG_VERSION").to_owned()));
         },
-        HelpOrVersion::None => args.subcommand.unwrap(),
+        HelpOrVersion::None if args.subcommand.is_none() => {
+            return Ok(Some(commands::help(args.subcommand)));
+        },
+        HelpOrVersion::None => args
+            .subcommand
+            .expect("checked that we DO have a subcommand in an earlier branch"),
     };
 
     match subcommand {
@@ -32,15 +38,15 @@ async fn main_impl() -> Result<Option<String>, Box<dyn error::Error>> {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> ExitCode {
     match main_impl().await {
-        Ok(ok) => {
-            println!("{}", ok.unwrap_or_default());
-            std::process::exit(0);
+        Ok(msg) => {
+            println!("{}", msg.unwrap_or_default());
+            ExitCode::SUCCESS
         },
         Err(err) => {
             eprintln!("{err}");
-            std::process::exit(1);
+            ExitCode::FAILURE
         },
     }
 }

@@ -26,7 +26,7 @@ pub async fn pr_fetch(mut args: PrFetch) -> anyhow::Result<()> {
             let start = GITHUB_REMOTE_PREFIX.len();
             let end = remote.len() - GITHUB_REMOTE_SUFFIX.len();
             args.remote_name = remote.get(start..end).map(Into::into);
-        };
+        }
     }
     let remote_name = args
         .remote_name
@@ -93,9 +93,8 @@ pub async fn pr_fetch(mut args: PrFetch) -> anyhow::Result<()> {
             },
             Err(err) => {
                 fail!("{err}");
-                continue;
             },
-        };
+        }
     }
 
     Ok(())

@@ -73,7 +73,7 @@ impl SubCommand for BranchFetch {
                         return Err(CliParseError::EmptyArgument(format!(
                             "commit is empty for {arg}"
                         )));
-                    };
+                    }
                     (branch_name, Some(commit))
                 },
                 None => (arg.as_str(), None),
