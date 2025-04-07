@@ -19,9 +19,10 @@ async fn main_impl() -> Result<Option<String>, Box<dyn error::Error>> {
         HelpOrVersion::None if args.subcommand.is_none() => {
             return Ok(Some(commands::help(args.subcommand)));
         },
-        HelpOrVersion::None => args
-            .subcommand
-            .expect("checked that we DO have a subcommand in an earlier branch"),
+        HelpOrVersion::None => {
+            args.subcommand
+                .expect("checked that we DO have a subcommand in an earlier branch")
+        },
     };
 
     match subcommand {

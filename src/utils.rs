@@ -84,7 +84,7 @@ macro_rules! fail {
 //     ($($arg:tt)*) => {{
 //         if *$crate::flags::IS_VERBOSE {
 //             eprintln!("  {}{}",
-//                 
+//
 // colored::Colorize::bold(colored::Colorize::bright_yellow("--verbose: ")),
 //                 format!($($arg)*))
 //         }

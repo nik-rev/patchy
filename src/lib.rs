@@ -1,6 +1,7 @@
 #![cfg_attr(doc, doc = include_str!("../docs/README.md"))]
 use core::fmt;
-use std::{env, sync::LazyLock};
+use std::env;
+use std::sync::LazyLock;
 
 use cli::CliParseError;
 use colored::Colorize as _;

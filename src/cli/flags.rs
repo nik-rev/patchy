@@ -122,12 +122,16 @@ impl HelpOrVersion {
             },
 
             // Same flag already set
-            (HelpOrVersion::Help, HelpOrVersion::Help) => Err(CliParseError::DuplicateFlag(
-                Flag::GlobalFlag(HelpOrVersion::Help),
-            )),
-            (HelpOrVersion::Version, HelpOrVersion::Version) => Err(CliParseError::DuplicateFlag(
-                Flag::GlobalFlag(HelpOrVersion::Version),
-            )),
+            (HelpOrVersion::Help, HelpOrVersion::Help) => {
+                Err(CliParseError::DuplicateFlag(Flag::GlobalFlag(
+                    HelpOrVersion::Help,
+                )))
+            },
+            (HelpOrVersion::Version, HelpOrVersion::Version) => {
+                Err(CliParseError::DuplicateFlag(Flag::GlobalFlag(
+                    HelpOrVersion::Version,
+                )))
+            },
 
             // Conflicting flags
             (HelpOrVersion::Help, HelpOrVersion::Version)

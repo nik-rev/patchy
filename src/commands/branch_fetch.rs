@@ -16,10 +16,9 @@ pub async fn branch_fetch(args: BranchFetch) -> anyhow::Result<()> {
                     info.branch.local_branch_name.bright_cyan(),
                     branch
                         .commit
-                        .map(|commit_hash| format!(
-                            ", at commit {}",
-                            commit_hash.as_ref().bright_yellow()
-                        ))
+                        .map(|commit_hash| {
+                            format!(", at commit {}", commit_hash.as_ref().bright_yellow())
+                        })
                         .unwrap_or_default()
                 );
 

@@ -34,12 +34,14 @@ impl fmt::Display for CliParseError {
         match self {
             CliParseError::UnexpectedFlag(flag) => write!(f, "Unexpected flag: {flag}"),
             CliParseError::DuplicateFlag(flag) => write!(f, "Cannot use {flag} more than once"),
-            CliParseError::MutuallyExclusiveFlags => write!(
-                f,
-                "Flags {} and {} are mutually exclusive, so they cannot be used together.",
-                HelpOrVersion::Help,
-                HelpOrVersion::Version
-            ),
+            CliParseError::MutuallyExclusiveFlags => {
+                write!(
+                    f,
+                    "Flags {} and {} are mutually exclusive, so they cannot be used together.",
+                    HelpOrVersion::Help,
+                    HelpOrVersion::Version
+                )
+            },
             CliParseError::UnknownArgument(arg) => write!(f, "Unknown argument: {arg}"),
             CliParseError::EmptyArgument(arg) => write!(f, "Empty argument: {arg}"),
             CliParseError::InvalidArgument(arg) => write!(f, "Invalid argument: {arg}"),
@@ -65,11 +67,13 @@ impl fmt::Display for CliParseError {
                 write!(f, "{pr} must be followed by a commit hash")
             },
             CliParseError::InvalidRepo(repo) => write!(f, "Invalid repo: {repo}"),
-            CliParseError::CheckoutNoSource => write!(
-                f,
-                "Expected at least 1 argument when using the {} flag",
-                LocalFlag::Checkout
-            ),
+            CliParseError::CheckoutNoSource => {
+                write!(
+                    f,
+                    "Expected at least 1 argument when using the {} flag",
+                    LocalFlag::Checkout
+                )
+            },
             CliParseError::InvalidCommitHash(commit) => {
                 write!(f, "{commit} is not a valid commit hash")
             },
@@ -165,10 +169,12 @@ impl Cli {
                 "pr-fetch" => {
                     Subcommand::PrFetch(pr_fetch::PrFetch::parse(&mut args, &mut global_flag)?)
                 },
-                "branch-fetch" => Subcommand::BranchFetch(branch_fetch::BranchFetch::parse(
-                    &mut args,
-                    &mut global_flag,
-                )?),
+                "branch-fetch" => {
+                    Subcommand::BranchFetch(branch_fetch::BranchFetch::parse(
+                        &mut args,
+                        &mut global_flag,
+                    )?)
+                },
                 arg => return Err(CliParseError::UnknownSubcommand(arg.to_owned())),
             });
         }
