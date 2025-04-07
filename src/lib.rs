@@ -1,3 +1,4 @@
+#![cfg_attr(doc, doc = include_str!("../docs/README.md"))]
 use core::fmt;
 use std::env;
 

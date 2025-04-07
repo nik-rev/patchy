@@ -215,7 +215,7 @@ If you merge a lot of PRs, it's likely some of them will clash with eachother an
 
 Say you merge 10 pull requests, 3 of which couldn't be merged due to merge conflicts. The other 7 will be merged, while branches for those 3 will exist and you will be able to merge them yourself.
 
-```
+```text
   ✗ Could not merge branch 11164/command-expansion into the current branch for pull request #11164 Command expansion v2 since the merge is non-trivial.
 You will need to merge it yourself:
   git merge --squash 11164/command-expansion
@@ -232,7 +232,7 @@ Fixing merge conflicts and retaining the fixes, declaratively
 
 Okay, now merge the branch:
 
-```bash
+```sh
 git merge --squash 11164/command-expansion
 ```
 
@@ -242,19 +242,19 @@ Now fix the merge conflicts.
 
 Then, commit your changes:
 
-```
+```sh
 git commit -m "merge branch 11164/command-expansion"
 ```
 
 This creates the following commit:
 
-```
+```text
 2fb6c3c7 (HEAD -> patchy) Merge branch '11164/command-expansion' into patchy
 ```
 
 Now that you have this commit, let's generate a `.patch` file for it:
 
-```
+```text
 > patchy gen-patch 2fb6c3c7 --patch-filename=merge-11164
   ✓ Created patch file at .patchy/merge-11164.patch
 ```
