@@ -18,7 +18,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo check
 
-  check:
+  format:
     name: Format
     runs-on: ubuntu-latest
     steps:
