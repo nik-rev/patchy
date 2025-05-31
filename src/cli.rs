@@ -10,7 +10,7 @@ use tap::Pipe as _;
 
 use crate::commit::Commit;
 
-/// Patchy automatically
+/// A tool which makes it easy to declaratively manage personal forks by automatically merging pull requests
 #[derive(Parser)]
 #[command(version, styles = STYLES, long_about = None)]
 pub struct Args {

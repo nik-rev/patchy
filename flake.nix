@@ -36,9 +36,7 @@
             pkgs.rust-bin.stable.latest.default.override { extensions = [ "rust-src" ]; }
           }/lib/rustlib/src/rust/library";
         };
-        packages = {
-          default = pkgsFor.${system}.callPackage ./. { };
-        };
+        packages.default = callPackage ./. { };
       }
     );
 }
