@@ -101,7 +101,7 @@ pub fn help(subcommand: Option<Subcommand>) -> String {
 
 "
                     )
-                },
+                }
                 Subcommand::Run(_) => {
                     let cmd_name = Run::NAME;
                     let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
@@ -124,7 +124,7 @@ pub fn help(subcommand: Option<Subcommand>) -> String {
     {yes_flag}
 "
                     )
-                },
+                }
                 Subcommand::GenPatch(_) => {
                     let cmd_name = GenPatch::NAME;
                     let this_command_name = format!("{app_name} {}", cmd_name.bright_yellow());
@@ -188,7 +188,7 @@ pub fn help(subcommand: Option<Subcommand>) -> String {
 {help_and_version}
 "
                     )
-                },
+                }
                 Subcommand::PrFetch(_) => {
                     let cmd_name = PrFetch::NAME;
                     let description = format_description(PrFetch::DOCS);
@@ -284,7 +284,7 @@ pub fn help(subcommand: Option<Subcommand>) -> String {
 {help_and_version}
 "
                     )
-                },
+                }
                 Subcommand::BranchFetch(_) => {
                     let cmd_name = BranchFetch::NAME;
                     let description =
@@ -325,7 +325,7 @@ pub fn help(subcommand: Option<Subcommand>) -> String {
 {help_and_version}
 "
                     )
-                },
+                }
             }
         },
     )

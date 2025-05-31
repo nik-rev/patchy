@@ -41,10 +41,10 @@ pub async fn branch_fetch(args: BranchFetch) -> anyhow::Result<()> {
                         );
                     }
                 }
-            },
+            }
             Err(err) => {
                 fail!("{err}");
-            },
+            }
         }
     }
 

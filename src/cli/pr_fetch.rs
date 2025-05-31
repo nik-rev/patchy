@@ -71,7 +71,7 @@ impl SubCommand for PrFetch {
                         return Err(CliParseError::DuplicateFlag(Flag::LocalFlag(flag)));
                     }
                     checkout = true;
-                },
+                }
                 Some(LocalFlag::RepoName(custom_repo_name)) => {
                     if repo_name.is_some() {
                         return Err(CliParseError::DuplicateFlag(Flag::LocalFlag(
@@ -82,7 +82,7 @@ impl SubCommand for PrFetch {
                         return Err(CliParseError::EmptyArgument(arg.clone()));
                     }
                     repo_name = Some(custom_repo_name);
-                },
+                }
                 Some(LocalFlag::BranchName(custom_branch_name)) => {
                     let Some(pr) = prs.last_mut() else {
                         return Err(CliParseError::BranchNameInvalidPosition(custom_branch_name));
@@ -93,7 +93,7 @@ impl SubCommand for PrFetch {
                         )));
                     }
                     pr.custom_branch_name = Some(custom_branch_name);
-                },
+                }
                 Some(flag) => return Err(CliParseError::UnexpectedFlag(flag)),
                 None => {
                     let parse_pr = |pr: &str| {
@@ -106,7 +106,7 @@ impl SubCommand for PrFetch {
                                 return Err(CliParseError::EmptyCommitHash(arg.clone()));
                             }
                             (parse_pr(pr_number)?, Some(commit))
-                        },
+                        }
                         None => (parse_pr(&arg)?, None),
                     };
                     let commit = commit.map(|c| Commit::parse(c.to_owned())).transpose()?;
@@ -115,7 +115,7 @@ impl SubCommand for PrFetch {
                         commit,
                         custom_branch_name: None,
                     });
-                },
+                }
             }
         }
 

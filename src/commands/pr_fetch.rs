@@ -89,10 +89,10 @@ pub async fn pr_fetch(mut args: PrFetch) -> anyhow::Result<()> {
                         );
                     }
                 }
-            },
+            }
             Err(err) => {
                 fail!("{err}");
-            },
+            }
         }
     }
 

@@ -167,15 +167,15 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
                                     &response.html_url
                                 ),
                             );
-                        },
+                        }
                         Err(err) => {
                             fail!("{err}");
-                        },
+                        }
                     }
-                },
+                }
                 Err(err) => {
                     fail!("Could not fetch branch from remote\n{err}");
-                },
+                }
             }
         }
     }

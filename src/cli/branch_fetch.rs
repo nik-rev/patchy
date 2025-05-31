@@ -62,7 +62,7 @@ impl SubCommand for BranchFetch {
                     }
                     checkout = true;
                     continue;
-                },
+                }
                 Some(flag) => return Err(CliParseError::UnexpectedFlag(flag)),
                 None => (),
             }
@@ -75,7 +75,7 @@ impl SubCommand for BranchFetch {
                         )));
                     }
                     (branch_name, Some(commit))
-                },
+                }
                 None => (arg.as_str(), None),
             };
 

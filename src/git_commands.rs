@@ -33,11 +33,9 @@ pub struct Commit(String);
 
 impl Commit {
     pub fn parse(s: String) -> Result<Self, CliParseError> {
-        Self::try_new(&s).map_err(|err| {
-            match err {
-                CommitError::NotEmptyViolated => CliParseError::EmptyCommitHash(s),
-                CommitError::PredicateViolated => CliParseError::InvalidCommitHash(s),
-            }
+        Self::try_new(&s).map_err(|err| match err {
+            CommitError::NotEmptyViolated => CliParseError::EmptyCommitHash(s),
+            CommitError::PredicateViolated => CliParseError::InvalidCommitHash(s),
         })
     }
 }
@@ -91,15 +89,14 @@ pub fn get_git_root() -> anyhow::Result<PathBuf> {
     get_git_output(&root, &args).map(Into::into)
 }
 
-pub static GIT_ROOT: std::sync::LazyLock<PathBuf> = std::sync::LazyLock::new(|| {
-    match get_git_root() {
+pub static GIT_ROOT: std::sync::LazyLock<PathBuf> =
+    std::sync::LazyLock::new(|| match get_git_root() {
         Ok(root) => root,
         Err(err) => {
             fail!("Failed to determine Git root directory.\n{err}");
             process::exit(1)
-        },
-    }
-});
+        }
+    });
 
 type Git = Lazy<Box<dyn Fn(&[&str]) -> Result<String> + Send + Sync>>;
 

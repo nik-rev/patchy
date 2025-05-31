@@ -26,7 +26,7 @@ impl fmt::Display for PatchyError {
         match self {
             PatchyError::CliParseError(cli_parse_error) => {
                 write!(f, "{error}: {cli_parse_error}",)
-            },
+            }
         }
     }
 }

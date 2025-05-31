@@ -39,7 +39,7 @@ impl SubCommand for Run {
                         return Err(CliParseError::DuplicateFlag(Flag::LocalFlag(flag)));
                     }
                     yes = true;
-                },
+                }
                 Some(flag) => return Err(CliParseError::UnexpectedFlag(flag)),
                 None => return Err(CliParseError::InvalidArgument(arg)),
             }

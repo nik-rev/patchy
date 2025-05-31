@@ -94,7 +94,7 @@ impl fmt::Display for LocalFlag {
             LocalFlag::RepoName(name) => write!(f, "{}{name}", PrFetch::REPO_NAME_FLAG.long),
             LocalFlag::BranchName(name) => {
                 write!(f, "{}{name}", BranchFetch::BRANCH_NAME_FLAG.long)
-            },
+            }
         }
     }
 }
@@ -119,31 +119,27 @@ impl HelpOrVersion {
             (HelpOrVersion::None, flag) => {
                 *self = flag;
                 Ok(())
-            },
+            }
 
             // Same flag already set
-            (HelpOrVersion::Help, HelpOrVersion::Help) => {
-                Err(CliParseError::DuplicateFlag(Flag::GlobalFlag(
-                    HelpOrVersion::Help,
-                )))
-            },
-            (HelpOrVersion::Version, HelpOrVersion::Version) => {
-                Err(CliParseError::DuplicateFlag(Flag::GlobalFlag(
-                    HelpOrVersion::Version,
-                )))
-            },
+            (HelpOrVersion::Help, HelpOrVersion::Help) => Err(CliParseError::DuplicateFlag(
+                Flag::GlobalFlag(HelpOrVersion::Help),
+            )),
+            (HelpOrVersion::Version, HelpOrVersion::Version) => Err(CliParseError::DuplicateFlag(
+                Flag::GlobalFlag(HelpOrVersion::Version),
+            )),
 
             // Conflicting flags
             (HelpOrVersion::Help, HelpOrVersion::Version)
             | (HelpOrVersion::Version, HelpOrVersion::Help) => {
                 Err(CliParseError::MutuallyExclusiveFlags)
-            },
+            }
 
             // Second case is GlobalFlag::None, which shouldn't happen
             _ => {
                 *self = new_flag;
                 Ok(())
-            },
+            }
         }
     }
 }

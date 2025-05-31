@@ -48,7 +48,7 @@ impl SubCommand for GenPatch {
                         return Err(CliParseError::PatchFilenameInvalidPosition(custom_filename));
                     };
                     patch.custom_filename = Some(custom_filename);
-                },
+                }
                 Some(flag) => return Err(CliParseError::UnexpectedFlag(flag)),
                 None => {
                     // TODO: validate the commit hash that it is a valid commit hash
@@ -56,7 +56,7 @@ impl SubCommand for GenPatch {
                         commit: arg,
                         custom_filename: None,
                     });
-                },
+                }
             }
         }
 

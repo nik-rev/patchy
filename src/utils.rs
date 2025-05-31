@@ -48,7 +48,7 @@ pub async fn make_request(url: &str) -> anyhow::Result<String> {
             let out = res.text().await?;
 
             Ok(out)
-        },
+        }
         Ok(res) => {
             let status = res.status();
             let text = res.text().await?;
@@ -56,7 +56,7 @@ pub async fn make_request(url: &str) -> anyhow::Result<String> {
             Err(anyhow!(
                 "Request failed with status: {status}\nRequested URL: {url}\nResponse: {text}",
             ))
-        },
+        }
         Err(err) => Err(anyhow!("Error sending request: {err}")),
     }
 }

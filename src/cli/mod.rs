@@ -41,31 +41,31 @@ impl fmt::Display for CliParseError {
                     HelpOrVersion::Help,
                     HelpOrVersion::Version
                 )
-            },
+            }
             CliParseError::UnknownArgument(arg) => write!(f, "Unknown argument: {arg}"),
             CliParseError::EmptyArgument(arg) => write!(f, "Empty argument: {arg}"),
             CliParseError::InvalidArgument(arg) => write!(f, "Invalid argument: {arg}"),
             CliParseError::UnknownFlag(flag) => write!(f, "Unknown flag: {flag}"),
             CliParseError::UnknownSubcommand(subcommand) => {
                 write!(f, "Unknown subcommand: {subcommand}")
-            },
+            }
             CliParseError::PatchFilenameInvalidPosition(filename) => {
                 write!(
                     f,
                     "{} must follow a commit hash",
                     LocalFlag::PatchFilename(filename.to_string())
                 )
-            },
+            }
             CliParseError::BranchNameInvalidPosition(name) => {
                 write!(
                     f,
                     "{} must follow a pull request number",
                     LocalFlag::PatchFilename(name.to_string())
                 )
-            },
+            }
             CliParseError::EmptyCommitHash(pr) => {
                 write!(f, "{pr} must be followed by a commit hash")
-            },
+            }
             CliParseError::InvalidRepo(repo) => write!(f, "Invalid repo: {repo}"),
             CliParseError::CheckoutNoSource => {
                 write!(
@@ -73,10 +73,10 @@ impl fmt::Display for CliParseError {
                     "Expected at least 1 argument when using the {} flag",
                     LocalFlag::Checkout
                 )
-            },
+            }
             CliParseError::InvalidCommitHash(commit) => {
                 write!(f, "{commit} is not a valid commit hash")
-            },
+            }
         }
     }
 }
@@ -165,16 +165,14 @@ impl Cli {
                 "run" => Subcommand::Run(run::Run::parse(&mut args, &mut global_flag)?),
                 "gen-patch" => {
                     Subcommand::GenPatch(gen_patch::GenPatch::parse(&mut args, &mut global_flag)?)
-                },
+                }
                 "pr-fetch" => {
                     Subcommand::PrFetch(pr_fetch::PrFetch::parse(&mut args, &mut global_flag)?)
-                },
-                "branch-fetch" => {
-                    Subcommand::BranchFetch(branch_fetch::BranchFetch::parse(
-                        &mut args,
-                        &mut global_flag,
-                    )?)
-                },
+                }
+                "branch-fetch" => Subcommand::BranchFetch(branch_fetch::BranchFetch::parse(
+                    &mut args,
+                    &mut global_flag,
+                )?),
                 arg => return Err(CliParseError::UnknownSubcommand(arg.to_owned())),
             });
         }
