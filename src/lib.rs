@@ -1,4 +1,4 @@
-#![cfg_attr(doc, doc = include_str!("../docs/README.md"))]
+#![cfg_attr(doc, doc = include_str!("../README.md"))]
 use std::env;
 use std::sync::LazyLock;
 
