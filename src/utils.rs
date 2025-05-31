@@ -4,6 +4,7 @@ use reqwest::header::USER_AGENT;
 
 use crate::git_commands::CLIENT;
 
+/// Add a uuid identifier to the string to make it unique
 pub fn with_uuid(s: &str) -> String {
     format!(
         "{uuid}-{s}",
@@ -32,10 +33,12 @@ pub fn normalize_commit_msg(commit_msg: &str) -> String {
         .collect()
 }
 
+/// Style a snippet of text as a link
 pub fn display_link(text: &str, url: &str) -> String {
     format!("\u{1b}]8;;{url}\u{1b}\\{text}\u{1b}]8;;\u{1b}\\")
 }
 
+/// Send a GET request to the specified URL
 pub async fn make_request(url: &str) -> anyhow::Result<String> {
     let request = CLIENT
         .get(url)
@@ -59,37 +62,4 @@ pub async fn make_request(url: &str) -> anyhow::Result<String> {
         }
         Err(err) => Err(anyhow!("Error sending request: {err}")),
     }
-}
-
-#[macro_export]
-macro_rules! success {
-    ($($arg:tt)*) => {{
-        println!("  {}{}",
-            colored::Colorize::bold(colored::Colorize::bright_green("✓ ")),
-            format!($($arg)*))
-    }};
-}
-
-#[macro_export]
-macro_rules! fail {
-    ($($arg:tt)*) => {{
-        eprintln!("  {}{}",
-            colored::Colorize::bold(colored::Colorize::bright_red("✗ ")),
-            format!($($arg)*))
-    }};
-}
-
-/// Interact with the user to get a yes or a no answer
-#[macro_export]
-macro_rules! confirm_prompt {
-    ($($arg:tt)*) => {{
-        dialoguer::Confirm::new()
-            .with_prompt(format!(
-                "\n  {} {}",
-                "»".bright_black(),
-                format!($($arg)*)
-            ))
-            .interact()
-            .unwrap()
-    }};
 }

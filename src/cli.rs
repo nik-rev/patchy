@@ -8,7 +8,7 @@ use clap::{
 };
 use tap::Pipe as _;
 
-use crate::git_commands::Commit;
+use crate::commit::Commit;
 
 /// Patchy automatically
 #[derive(Parser)]

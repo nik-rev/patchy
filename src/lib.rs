@@ -5,7 +5,9 @@ use std::sync::LazyLock;
 pub mod backup;
 pub mod cli;
 pub mod commands;
+mod commit;
 pub mod git_commands;
+mod interact;
 pub mod types;
 pub mod utils;
 

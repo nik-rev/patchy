@@ -1,6 +1,7 @@
 use std::fs::{self, File};
 use std::io::Write as _;
 
+use anyhow::bail;
 use colored::Colorize as _;
 
 use crate::git_commands::GIT_ROOT;
@@ -19,16 +20,16 @@ pub fn init() -> anyhow::Result<()> {
             config_file_path.to_string_lossy().bright_blue(),
         )
     {
-        anyhow::bail!("Did not overwrite {config_file_path:?}");
+        bail!("Did not overwrite {}", config_file_path.display());
     }
 
-    let _ = fs::create_dir_all(config_path);
+    fs::create_dir_all(config_path)?;
 
     let mut file = File::create(&config_file_path)?;
 
     file.write_all(example_config)?;
 
-    success!("Created config file {config_file_path:?}");
+    success!("Created config file {}", config_file_path.display());
 
     Ok(())
 }

@@ -1,8 +1,7 @@
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 
-pub type CommandArgs = IndexSet<String>;
-
+/// Represents the TOML config
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "kebab-case")]
 pub struct Configuration {
@@ -13,6 +12,7 @@ pub struct Configuration {
     pub repo: String,
 }
 
+/// Data returned by GitHub's API
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GitHubResponse {
     pub head: Head,
@@ -47,23 +47,4 @@ pub struct Remote {
 pub struct BranchAndRemote {
     pub branch: Branch,
     pub remote: Remote,
-}
-
-impl BranchAndRemote {
-    pub fn new(
-        local_branch: &str,
-        remote_branch: &str,
-        local_remote: &str,
-        remote_remote: &str,
-    ) -> Self {
-        let branch = Branch {
-            local_branch_name: local_branch.into(),
-            upstream_branch_name: remote_branch.into(),
-        };
-        let remote = Remote {
-            local_remote_alias: local_remote.into(),
-            repository_url: remote_remote.into(),
-        };
-        Self { branch, remote }
-    }
 }

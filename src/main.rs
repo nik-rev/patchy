@@ -2,7 +2,7 @@ use clap::Parser as _;
 
 use std::process::ExitCode;
 
-use patchy::{cli::Command, commands};
+use patchy::{cli::Command, commands, fail};
 
 async fn main_impl() -> anyhow::Result<()> {
     let arg = patchy::cli::Args::parse();
@@ -33,7 +33,7 @@ async fn main_impl() -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> ExitCode {
     if let Err(err) = main_impl().await {
-        eprintln!("{err}");
+        fail!("{err}");
         ExitCode::FAILURE
     } else {
         ExitCode::SUCCESS

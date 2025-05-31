@@ -1,7 +1,8 @@
 use colored::Colorize as _;
 
 use crate::cli::Remote;
-use crate::git_commands::{Commit, GIT, fetch_branch};
+use crate::commit::Commit;
+use crate::git_commands::{fetch_branch, git};
 use crate::{fail, success};
 
 pub async fn branch_fetch(
@@ -25,10 +26,10 @@ pub async fn branch_fetch(
             );
 
             // Attempt to cleanup after ourselves
-            let _ = GIT(&["remote", "remove", &info.remote.local_remote_alias]);
+            let _ = git(["remote", "remove", &info.remote.local_remote_alias]);
 
             if checkout {
-                if let Err(cant_checkout) = GIT(&["checkout", &info.branch.local_branch_name]) {
+                if let Err(cant_checkout) = git(["checkout", &info.branch.local_branch_name]) {
                     fail!(
                         "Could not check out branch
                 {}:\n{cant_checkout}",

@@ -6,53 +6,17 @@
 //!   time we want to interact with Git
 use std::path::{Path, PathBuf};
 use std::process::{self, Output};
-use std::str::FromStr;
 use std::sync::LazyLock;
 use std::{env, io};
 
 use anyhow::{Result, anyhow};
 use colored::Colorize as _;
-use nutype::nutype;
-use once_cell::sync::Lazy;
 use reqwest::Client;
 
+use crate::commit::Commit;
 use crate::fail;
 use crate::types::{BranchAndRemote, GitHubResponse, Remote, Repo};
 use crate::utils::{display_link, make_request, normalize_commit_msg, with_uuid};
-
-#[nutype(
-    validate(not_empty, predicate = is_valid_commit_hash),
-    derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef)
-)]
-pub struct Commit(String);
-
-impl FromStr for Commit {
-    type Err = String;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        Self::try_new(s).map_err(|err| match err {
-            CommitError::NotEmptyViolated => "commit cannot be empty".to_string(),
-            CommitError::PredicateViolated => format!("invalid commit hash: {s}"),
-        })
-    }
-}
-
-/// A valid branch name consists of alphanumeric characters, but also '.', '-',
-/// '/' or '_'
-pub fn is_valid_branch_name(branch_name: &str) -> bool {
-    branch_name
-        .chars()
-        .all(|ch| ch.is_alphanumeric() || ch == '.' || ch == '-' || ch == '/' || ch == '_')
-}
-
-/// Does not check if the commit hash exists, just checks if it is potentially
-/// valid A commit hash can consist of `a-f` and `0-9` characters
-pub fn is_valid_commit_hash(hash: &str) -> bool {
-    hash.chars().all(|ch| ch.is_ascii_hexdigit())
-}
-
-pub const GITHUB_REMOTE_PREFIX: &str = "git@github.com:";
-pub const GITHUB_REMOTE_SUFFIX: &str = ".git";
 
 pub fn spawn_git(args: &[&str], git_dir: &Path) -> Result<Output, io::Error> {
     process::Command::new("git")
@@ -95,14 +59,10 @@ pub static GIT_ROOT: std::sync::LazyLock<PathBuf> =
         }
     });
 
-type Git = Lazy<Box<dyn Fn(&[&str]) -> Result<String> + Send + Sync>>;
-
-pub static GIT: Git = Lazy::new(|| {
-    Box::new(move |args: &[&str]| -> Result<String> {
-        log::trace!("$ git {}", args.join(" "));
-        get_git_output(&spawn_git(args, &GIT_ROOT)?, args)
-    })
-});
+pub fn git<const N: usize>(args: [&str; N]) -> Result<String> {
+    log::trace!("$ git {}", args.join(" "));
+    get_git_output(&spawn_git(&args, &GIT_ROOT)?, &args)
+}
 
 pub static CLIENT: LazyLock<Client> = LazyLock::new(|| *Box::new(reqwest::Client::new()));
 
@@ -112,13 +72,13 @@ pub fn add_remote_branch(
     info: &BranchAndRemote,
     commit_hash: Option<&Commit>,
 ) -> anyhow::Result<()> {
-    if let Err(err) = GIT(&[
+    if let Err(err) = git([
         "remote",
         "add",
         &info.remote.local_remote_alias,
         &info.remote.repository_url,
     ]) {
-        GIT(&["remote", "remove", &info.remote.local_remote_alias])?;
+        git(["remote", "remove", &info.remote.local_remote_alias])?;
         return Err(anyhow!("Could not fetch remote: {err}"));
     }
 
@@ -128,7 +88,7 @@ pub fn add_remote_branch(
         &info.remote.local_remote_alias
     );
 
-    if let Err(err) = GIT(&[
+    if let Err(err) = git([
         "fetch",
         &info.remote.repository_url,
         &format!(
@@ -151,7 +111,7 @@ pub fn add_remote_branch(
     );
 
     if let Some(commit_hash) = commit_hash {
-        GIT(&[
+        git([
             "branch",
             "--force",
             &info.branch.local_branch_name,
@@ -175,13 +135,13 @@ pub fn add_remote_branch(
 pub fn clean_up_remote(remote: &str, branch: &str) -> anyhow::Result<()> {
     // NOTE: Caller needs to ensure this function only runs if the script created
     // the branch or if the user gave explicit permission
-    GIT(&["branch", "--delete", "--force", branch])?;
-    GIT(&["remote", "remove", remote])?;
+    git(["branch", "--delete", "--force", branch])?;
+    git(["remote", "remove", remote])?;
     Ok(())
 }
 
 pub fn checkout_from_remote(branch: &str, remote: &str) -> anyhow::Result<String> {
-    let current_branch = GIT(&["rev-parse", "--abbrev-ref", "HEAD"]).or_else(|err| {
+    let current_branch = git(["rev-parse", "--abbrev-ref", "HEAD"]).or_else(|err| {
         clean_up_remote(remote, branch)?;
         Err(anyhow!(
             "Couldn't get the current branch. This usually happens when the current branch does \
@@ -189,7 +149,7 @@ pub fn checkout_from_remote(branch: &str, remote: &str) -> anyhow::Result<String
         ))
     })?;
 
-    if let Err(err) = GIT(&["checkout", branch]) {
+    if let Err(err) = git(["checkout", branch]) {
         clean_up_remote(remote, branch)?;
         return Err(anyhow!(
             "Could not checkout branch: {branch}, which belongs to remote {remote}\n{err}"
@@ -205,14 +165,14 @@ pub fn merge_into_main(
 ) -> anyhow::Result<String, anyhow::Error> {
     log::trace!("Merging branch {local_branch}");
 
-    if let Err(err) = GIT(&["merge", "--squash", local_branch]) {
+    if let Err(err) = git(["merge", "--squash", local_branch]) {
         // nukes the worktree
-        GIT(&["reset", "--hard"])?;
+        git(["reset", "--hard"])?;
         return Err(anyhow!("Could not merge {remote_branch}\n{err}"));
     }
 
     // --squash will NOT commit anything. So we need to make it manually
-    GIT(&[
+    git([
         "commit",
         "--message",
         &format!("patchy: Merge {local_branch}",),
@@ -259,10 +219,10 @@ pub async fn merge_pull_request(
         )
     })?;
 
-    let has_unstaged_changes = GIT(&["diff", "--cached", "--quiet"]).is_err();
+    let has_unstaged_changes = git(["diff", "--cached", "--quiet"]).is_err();
 
     if has_unstaged_changes {
-        GIT(&[
+        git([
             "commit",
             "--message",
             &format!(
@@ -308,7 +268,7 @@ enum AvailableBranch {
 /// pretty annoying to specify a name for each branch if you have like 30 pull
 /// requests you want to merge
 fn first_available_branch(branch: &str) -> AvailableBranch {
-    let branch_exists = GIT(&["rev-parse", "--verify", branch]).is_err();
+    let branch_exists = git(["rev-parse", "--verify", branch]).is_err();
 
     if branch_exists {
         return AvailableBranch::First;
@@ -322,7 +282,7 @@ fn first_available_branch(branch: &str) -> AvailableBranch {
     let number = (2..)
         .find(|current| {
             let branch_with_num = format!("{current}-{branch}");
-            GIT(&["rev-parse", "--verify", &branch_with_num]).is_err()
+            git(["rev-parse", "--verify", &branch_with_num]).is_err()
         })
         .expect("There will eventually be a #-branch which is available.");
 

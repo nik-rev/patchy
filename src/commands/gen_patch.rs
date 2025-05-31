@@ -3,15 +3,16 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 
-use crate::git_commands::{Commit, GIT, GIT_ROOT};
+use crate::commit::Commit;
+use crate::git_commands::{GIT_ROOT, git};
 use crate::utils::normalize_commit_msg;
-use crate::{CONFIG_ROOT, success};
+use crate::{CONFIG_ROOT, note, success};
 
 pub fn gen_patch(commit: Commit, filename: Option<PathBuf>) -> anyhow::Result<()> {
     let config_path = GIT_ROOT.join(CONFIG_ROOT.as_str());
 
     if !config_path.exists() {
-        success!(
+        note!(
             "Config directory {} does not exist, creating it...",
             config_path.to_string_lossy()
         );
@@ -23,7 +24,7 @@ pub fn gen_patch(commit: Commit, filename: Option<PathBuf>) -> anyhow::Result<()
     // 3. if all fails use the commit hash
     let patch_filename = filename.map_or_else(
         || {
-            GIT(&["log", "--format=%B", "--max-count=1", commit.as_ref()]).map_or_else(
+            git(["log", "--format=%B", "--max-count=1", commit.as_ref()]).map_or_else(
                 |_| commit.clone().into_inner(),
                 |commit_msg| normalize_commit_msg(&commit_msg),
             )
@@ -41,7 +42,7 @@ pub fn gen_patch(commit: Commit, filename: Option<PathBuf>) -> anyhow::Result<()
         bail!("Not a valid path: {patch_file_path:?}");
     };
 
-    if let Err(err) = GIT(&[
+    if let Err(err) = git([
         "format-patch",
         "-1",
         &commit.clone().into_inner(),

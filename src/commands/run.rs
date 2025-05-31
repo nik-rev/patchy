@@ -5,9 +5,10 @@ use colored::Colorize as _;
 
 use crate::backup::{files, restore};
 use crate::commands::pr_fetch::ignore_octothorpe;
+use crate::commit::Commit;
 use crate::git_commands::{
-    Commit, GIT, GIT_ROOT, add_remote_branch, checkout_from_remote, clean_up_remote,
-    fetch_pull_request, merge_pull_request,
+    GIT_ROOT, add_remote_branch, checkout_from_remote, clean_up_remote, fetch_pull_request, git,
+    merge_pull_request,
 };
 use crate::types::{Branch, BranchAndRemote, Configuration, Remote};
 use crate::utils::{display_link, with_uuid};
@@ -180,7 +181,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
     }
 
     if let Err(err) = fs::create_dir_all(GIT_ROOT.join(CONFIG_ROOT.as_str())) {
-        GIT(&["checkout", &previous_branch])?;
+        git(["checkout", &previous_branch])?;
 
         clean_up_remote(
             &info.remote.local_remote_alias,
@@ -207,12 +208,12 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
             continue;
         }
 
-        if let Err(err) = GIT(&["am", "--keep-cr", "--signoff", &file_name.to_string_lossy()]) {
-            GIT(&["am", "--abort"])?;
+        if let Err(err) = git(["am", "--keep-cr", "--signoff", &file_name.to_string_lossy()]) {
+            git(["am", "--abort"])?;
             return Err(anyhow!("Could not apply patch {patch}, skipping\n{err}"));
         }
 
-        let last_commit_message = GIT(&["log", "-1", "--format=%B"])?;
+        let last_commit_message = git(["log", "-1", "--format=%B"])?;
         success!(
             "Applied patch {patch} {}",
             last_commit_message
@@ -224,8 +225,8 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         );
     }
 
-    GIT(&["add", CONFIG_ROOT.as_str()])?;
-    GIT(&[
+    git(["add", CONFIG_ROOT.as_str()])?;
+    git([
         "commit",
         "--message",
         &format!("{APP_NAME}: Restore configuration files"),
@@ -233,7 +234,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
 
     let temporary_branch = with_uuid("temp-branch");
 
-    GIT(&["switch", "--create", &temporary_branch])?;
+    git(["switch", "--create", &temporary_branch])?;
 
     clean_up_remote(
         &info.remote.local_remote_alias,
@@ -249,7 +250,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         // forcefully renames the branch we are currently on into the branch specified
         // by the user. WARNING: this is a destructive action which erases the
         // original branch
-        GIT(&[
+        git([
             "branch",
             "--move",
             "--force",
