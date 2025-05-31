@@ -2,7 +2,7 @@
 
 ![image](https://github.com/user-attachments/assets/95546bae-5f61-4a14-b849-c4805bbe27af)
 
-`patchy` makes it easy to maintain personal forks in which you merge some pull requests of your liking to have more features than other people
+`patchy` makes it easy to maintain personal forks in which you merge some pull requests of your liking to have more features than other people.
 
 - [Why should I use it?](#why-should-i-use-it)
 - [Usage](#usage)
