@@ -1,6 +1,6 @@
-use clap::Parser as _;
-
 use std::process::ExitCode;
+
+use clap::Parser as _;
 
 #[tokio::main]
 async fn main() -> ExitCode {

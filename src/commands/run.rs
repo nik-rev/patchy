@@ -1,4 +1,6 @@
-use std::fs;
+use std::fs::{self, File};
+use std::io::Write as _;
+use std::path::PathBuf;
 
 use anyhow::{anyhow, bail};
 use colored::Colorize as _;
@@ -6,10 +8,10 @@ use colored::Colorize as _;
 use crate::commands::pr_fetch::ignore_octothorpe;
 use crate::commit::Commit;
 use crate::git::{self, GIT_ROOT, git};
+use crate::note;
 use crate::types::{Branch, BranchAndRemote, Configuration, Remote};
 use crate::utils::{display_link, with_uuid};
 use crate::{APP_NAME, CONFIG_FILE, CONFIG_ROOT, commands, confirm_prompt, fail, success};
-use crate::{backup, note};
 
 /// Parses user inputs of the form `<head><syntax><commit-hash>`
 ///
@@ -82,8 +84,33 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         )
     })?;
 
-    let backed_up_files = backup::files(config_files)
-        .map_err(|err| anyhow!("Failed to create backups for configuration files:\n{err}"))?;
+    let backed_up_files = {
+        let mut backups = Vec::new();
+
+        for config_file in config_files {
+            let config_file = config_file?;
+
+            let path = config_file.path();
+            let backup = fs::read_to_string(&path)
+                .map_err(|err| anyhow!("{err}"))
+                .and_then(|contents| {
+                    let filename = config_file.file_name();
+                    let mut destination_backed_up =
+                        tempfile::tempfile().map_err(|err| anyhow!("{err}"))?;
+
+                    write!(destination_backed_up, "{contents}")?;
+
+                    Ok((filename, destination_backed_up, contents))
+                })
+                .map_err(|err| {
+                    anyhow!("Failed to create backups for configuration files:\n{err}")
+                })?;
+
+            backups.push(backup);
+        }
+
+        backups
+    };
 
     let info = BranchAndRemote {
         branch: Branch {
@@ -164,15 +191,15 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
             &info.branch.local_branch_name,
         )?;
 
-        return Err(anyhow!(
-            "Could not create directory {}\n{err}",
-            CONFIG_ROOT.as_str()
-        ));
+        bail!("Could not create directory {}\n{err}", CONFIG_ROOT.as_str());
     }
 
     for (file_name, _file, contents) in &backed_up_files {
-        backup::restore(file_name, contents)
-            .map_err(|err| anyhow!("Could not restore backups:\n{err}"))?;
+        let path = GIT_ROOT.join(PathBuf::from(CONFIG_ROOT.as_str()).join(file_name));
+        let mut file =
+            File::create(&path).map_err(|err| anyhow!("failed to restore backup: {err}"))?;
+
+        write!(file, "{contents}")?;
     }
 
     // apply patches if they exist

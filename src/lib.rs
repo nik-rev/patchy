@@ -2,7 +2,6 @@
 use std::env;
 use std::sync::LazyLock;
 
-mod backup;
 mod cli;
 mod commands;
 mod commit;

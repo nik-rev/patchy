@@ -1,7 +1,7 @@
 //! Backup files that we are about to override, to make sure the user does not
 //! lose any work
 use std::ffi::OsString;
-use std::fs::{File, ReadDir, read_to_string};
+use std::fs::{self, File, ReadDir};
 use std::io::Write as _;
 use std::path::PathBuf;
 
@@ -17,7 +17,7 @@ pub fn files(config_files: ReadDir) -> anyhow::Result<Vec<(OsString, File, Strin
         let config_file = entry?;
 
         let path = config_file.path();
-        let contents = read_to_string(&path)?;
+        let contents = fs::read_to_string(&path)?;
 
         let filename = config_file.file_name();
         let mut destination_backed_up = tempfile()?;
