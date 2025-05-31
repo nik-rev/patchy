@@ -2,7 +2,7 @@ use colored::Colorize as _;
 
 use crate::cli::Remote;
 use crate::commit::Commit;
-use crate::git_commands::{fetch_branch, git};
+use crate::git::{fetch_branch, git};
 use crate::{fail, success};
 
 pub async fn branch_fetch(

@@ -9,7 +9,7 @@ use std::process::{self, Output};
 use std::sync::LazyLock;
 use std::{env, io};
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
 use colored::Colorize as _;
 use reqwest::Client;
 
@@ -79,7 +79,7 @@ pub fn add_remote_branch(
         &info.remote.repository_url,
     ]) {
         git(["remote", "remove", &info.remote.local_remote_alias])?;
-        return Err(anyhow!("Could not fetch remote: {err}"));
+        bail!("Failed to fetch remote: {err}");
     }
 
     log::trace!(
@@ -96,11 +96,11 @@ pub fn add_remote_branch(
             info.branch.upstream_branch_name, info.branch.local_branch_name
         ),
     ]) {
-        return Err(anyhow!(
-            "We couldn't find branch {} of GitHub repository {}. Are you sure it exists?\n{err}",
+        bail!(
+            "Failed to find branch {} of GitHub repository {}. Are you sure it exists?\n{err}",
             info.branch.upstream_branch_name,
             info.remote.repository_url
-        ));
+        );
     }
 
     log::trace!(
@@ -119,7 +119,7 @@ pub fn add_remote_branch(
         ])
         .map_err(|err| {
             anyhow!(
-                "We couldn't find commit {} of branch {}. Are you sure it exists?\n{err}",
+                "Failed to find commit {} of branch {}. Are you sure it exists?\n{err}",
                 commit_hash.as_ref(),
                 info.branch.local_branch_name
             )
@@ -132,28 +132,31 @@ pub fn add_remote_branch(
 }
 
 /// Removes a remote and its branch
-pub fn clean_up_remote(remote: &str, branch: &str) -> anyhow::Result<()> {
-    // NOTE: Caller needs to ensure this function only runs if the script created
-    // the branch or if the user gave explicit permission
+///
+/// Only call this function only runs if the script created
+/// the branch or if the user gave explicit permission
+pub fn delete_remote_and_branch(remote: &str, branch: &str) -> anyhow::Result<()> {
     git(["branch", "--delete", "--force", branch])?;
     git(["remote", "remove", remote])?;
     Ok(())
 }
 
 pub fn checkout_from_remote(branch: &str, remote: &str) -> anyhow::Result<String> {
-    let current_branch = git(["rev-parse", "--abbrev-ref", "HEAD"]).or_else(|err| {
-        clean_up_remote(remote, branch)?;
-        Err(anyhow!(
-            "Couldn't get the current branch. This usually happens when the current branch does \
+    let current_branch = git(["rev-parse", "--abbrev-ref", "HEAD"]).map_err(|err| {
+        if let Err(err) = delete_remote_and_branch(remote, branch) {
+            err
+        } else {
+            anyhow!(
+                "Couldn't get the current branch. This usually happens \
+            when the current branch does \
              not have any commits.\n{err}"
-        ))
+            )
+        }
     })?;
 
     if let Err(err) = git(["checkout", branch]) {
-        clean_up_remote(remote, branch)?;
-        return Err(anyhow!(
-            "Could not checkout branch: {branch}, which belongs to remote {remote}\n{err}"
-        ));
+        delete_remote_and_branch(remote, branch)?;
+        bail!("Failed to checkout branch: {branch}, which belongs to remote {remote}\n{err}");
     }
 
     Ok(current_branch)
@@ -168,7 +171,7 @@ pub fn merge_into_main(
     if let Err(err) = git(["merge", "--squash", local_branch]) {
         // nukes the worktree
         git(["reset", "--hard"])?;
-        return Err(anyhow!("Could not merge {remote_branch}\n{err}"));
+        bail!("Could not merge {remote_branch}\n{err}");
     }
 
     // --squash will NOT commit anything. So we need to make it manually
@@ -181,8 +184,8 @@ pub fn merge_into_main(
     Ok(format!("Merged {remote_branch} successfully"))
 }
 
-pub async fn merge_pull_request(
-    info: BranchAndRemote,
+pub fn merge_pull_request(
+    info: &BranchAndRemote,
     pull_request: &str,
     pr_title: &str,
     pr_url: &str,
@@ -232,7 +235,7 @@ pub async fn merge_pull_request(
         ])?;
     }
 
-    clean_up_remote(
+    delete_remote_and_branch(
         &info.remote.local_remote_alias,
         &info.branch.local_branch_name,
     )?;

@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use rand::{Rng as _, distributions};
 use reqwest::header::USER_AGENT;
 
-use crate::git_commands::CLIENT;
+use crate::git::CLIENT;
 
 /// Add a uuid identifier to the string to make it unique
 pub fn with_uuid(s: &str) -> String {

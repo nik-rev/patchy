@@ -3,7 +3,7 @@ use colored::Colorize as _;
 
 use crate::cli::Remote;
 use crate::commit::Commit;
-use crate::git_commands::{fetch_pull_request, git};
+use crate::git::{fetch_pull_request, git};
 use crate::utils::display_link;
 use crate::{fail, success};
 

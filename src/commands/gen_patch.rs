@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use anyhow::bail;
 
 use crate::commit::Commit;
-use crate::git_commands::{GIT_ROOT, git};
+use crate::git::{GIT_ROOT, git};
 use crate::utils::normalize_commit_msg;
 use crate::{CONFIG_ROOT, note, success};
 

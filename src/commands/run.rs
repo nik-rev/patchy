@@ -1,18 +1,15 @@
-use std::{fs, process};
+use std::fs;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use colored::Colorize as _;
 
-use crate::backup::{files, restore};
 use crate::commands::pr_fetch::ignore_octothorpe;
 use crate::commit::Commit;
-use crate::git_commands::{
-    GIT_ROOT, add_remote_branch, checkout_from_remote, clean_up_remote, fetch_pull_request, git,
-    merge_pull_request,
-};
+use crate::git::{self, GIT_ROOT, git};
 use crate::types::{Branch, BranchAndRemote, Configuration, Remote};
 use crate::utils::{display_link, with_uuid};
 use crate::{APP_NAME, CONFIG_FILE, CONFIG_ROOT, commands, confirm_prompt, fail, success};
+use crate::{backup, note};
 
 /// Parses user inputs of the form `<head><syntax><commit-hash>`
 ///
@@ -36,36 +33,20 @@ pub fn parse_if_maybe_hash(input: &str, syntax: &str) -> (String, Option<Commit>
 
 pub async fn run(yes: bool) -> anyhow::Result<()> {
     println!();
-
-    let config_path = GIT_ROOT.join(CONFIG_ROOT.as_str());
+    let root = CONFIG_ROOT.as_str();
+    let config_path = GIT_ROOT.join(root);
 
     let config_file_path = config_path.join(CONFIG_FILE);
 
     let Ok(config_raw) = fs::read_to_string(config_file_path.clone()) else {
-        fail!(
-            "Could not find configuration file at {}/{CONFIG_FILE}",
-            CONFIG_ROOT.as_str()
-        );
+        fail!("Could not find configuration file at {root}/{CONFIG_FILE}",);
 
         // We don't want to have *any* sort of prompt when using the -y flag since that
         // would be problematic in scripts
-        if !yes
-            && confirm_prompt!(
-                "Would you like us to run {} {} to initialize it?",
-                "patchy".bright_blue(),
-                "init".bright_yellow(),
-            )
-        {
-            if let Err(err) = commands::init() {
-                fail!("{err}");
-                process::exit(1);
-            }
+        if !yes && confirm_prompt!("Would you like us to run `patchy init` to initialize it?",) {
+            commands::init()?;
         } else if yes {
-            eprintln!(
-                "You can create it with {} {}",
-                "patchy".bright_blue(),
-                "init".bright_yellow()
-            );
+            note!("You can create it with `patchy init`",);
         } else {
             // user said "no" in the prompt, so we don't do any initializing
         }
@@ -73,40 +54,36 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         // We don't want to read the default configuration file as config_raw. Since
         // it's empty there's no reason why the user would want to run it.
 
-        process::exit(0);
+        return Ok(());
     };
 
     log::trace!("Using configuration file {config_file_path:?}");
 
     let config = toml::from_str::<Configuration>(&config_raw).map_err(|err| {
-        anyhow!(
-            "Could not parse `{}/{CONFIG_FILE}` configuration file:\n{err}",
-            CONFIG_ROOT.as_str()
-        )
+        anyhow!("Could not parse `{root}/{CONFIG_FILE}` configuration file:\n{err}",)
     })?;
 
     let (remote_branch, commit_hash) = parse_if_maybe_hash(&config.remote_branch, " @ ");
 
     if config.repo.is_empty() {
-        return Err(anyhow::anyhow!(
-            r#"You haven't specified a `repo` in your config, which can be for example:
-  - "helix-editor/helix"
-  - "microsoft/vscode"
+        bail!(
+            "You haven't specified a `repo` in your config, which can be for example:
+  - `helix-editor/helix`
+  - `microsoft/vscode`
 
-  For more information see this guide: https://github.com/nik-rev/patchy/blob/main/README.md""#
-        ));
+  For more information see this guide: https://github.com/nik-rev/patchy/blob/main/README.md"
+        );
     }
 
     let config_files = fs::read_dir(&config_path).map_err(|err| {
         anyhow!(
-            "Could not read files in directory {:?}\n{err}",
-            &config_path
+            "Failed to read files in directory `{}`:\n{err}",
+            &config_path.display()
         )
     })?;
 
-    let backed_up_files = files(config_files).map_err(|err| {
-        anyhow!("Could not create backups for configuration files, aborting.\n{err}")
-    })?;
+    let backed_up_files = backup::files(config_files)
+        .map_err(|err| anyhow!("Failed to create backups for configuration files:\n{err}"))?;
 
     let info = BranchAndRemote {
         branch: Branch {
@@ -119,9 +96,9 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         },
     };
 
-    add_remote_branch(&info, commit_hash.as_ref())?;
+    git::add_remote_branch(&info, commit_hash.as_ref())?;
 
-    let previous_branch = checkout_from_remote(
+    let previous_branch = git::checkout_from_remote(
         &info.branch.local_branch_name,
         &info.remote.local_remote_alias,
     )?;
@@ -142,17 +119,16 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
             let pull_request = ignore_octothorpe(pull_request);
             let (pull_request, commit_hash) = parse_if_maybe_hash(&pull_request, " @ ");
             // TODO: refactor this to not use such deep nesting
-            match fetch_pull_request(&config.repo, &pull_request, None, commit_hash.as_ref()).await
+            match git::fetch_pull_request(&config.repo, &pull_request, None, commit_hash.as_ref())
+                .await
             {
                 Ok((response, info)) => {
-                    match merge_pull_request(
-                        info,
+                    match git::merge_pull_request(
+                        &info,
                         &pull_request,
                         &response.title,
                         &response.html_url,
-                    )
-                    .await
-                    {
+                    ) {
                         Ok(()) => {
                             success!(
                                 "Merged pull request {}",
@@ -183,7 +159,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
     if let Err(err) = fs::create_dir_all(GIT_ROOT.join(CONFIG_ROOT.as_str())) {
         git(["checkout", &previous_branch])?;
 
-        clean_up_remote(
+        git::delete_remote_and_branch(
             &info.remote.local_remote_alias,
             &info.branch.local_branch_name,
         )?;
@@ -195,7 +171,8 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
     }
 
     for (file_name, _file, contents) in &backed_up_files {
-        restore(file_name, contents).map_err(|err| anyhow!("Could not restore backups:\n{err}"))?;
+        backup::restore(file_name, contents)
+            .map_err(|err| anyhow!("Could not restore backups:\n{err}"))?;
     }
 
     // apply patches if they exist
@@ -236,7 +213,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
 
     git(["switch", "--create", &temporary_branch])?;
 
-    clean_up_remote(
+    git::delete_remote_and_branch(
         &info.remote.local_remote_alias,
         &info.branch.local_branch_name,
     )?;
@@ -258,24 +235,23 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
             &config.local_branch,
         ])?;
         if yes {
-            log::info!(
-                "Overwrote branch {} since you supplied the {} flag",
+            note!(
+                "Automatically overwrote branch {} since you supplied the {} flag",
                 config.local_branch.cyan(),
                 "--yes".bright_magenta()
             );
         }
-        println!("\n  {}", "  Success!\n".bright_green().bold());
+        success!("Success!");
     } else {
-        let command = format!(
-            "  git branch --move --force {temporary_branch} {}",
+        let overwrite_command = format!(
+            "git branch --move --force {temporary_branch} {}",
             config.local_branch
         );
-        let command = format!("\n  {}\n", command.bright_magenta());
-        println!(
-            "\n    You can still manually overwrite {} with the following command:\n  {command}",
+        note!(
+            "You can still manually overwrite {} with:\n  {overwrite_command}\n",
             config.local_branch.cyan(),
         );
-        process::exit(1)
+        return Ok(());
     }
 
     Ok(())

@@ -4,7 +4,7 @@ use std::io::Write as _;
 use anyhow::bail;
 use colored::Colorize as _;
 
-use crate::git_commands::GIT_ROOT;
+use crate::git::GIT_ROOT;
 use crate::{CONFIG_FILE, CONFIG_ROOT, confirm_prompt, success};
 
 pub fn init() -> anyhow::Result<()> {

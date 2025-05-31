@@ -8,12 +8,12 @@ use clap::{
 };
 use tap::Pipe as _;
 
-use crate::commit::Commit;
+use crate::{commands, commit::Commit};
 
 /// A tool which makes it easy to declaratively manage personal forks by automatically merging pull requests
 #[derive(Parser)]
 #[command(version, styles = STYLES, long_about = None)]
-pub struct Args {
+pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
 }
@@ -69,6 +69,32 @@ pub enum Command {
         #[arg(short, long)]
         checkout: bool,
     },
+}
+
+impl Command {
+    pub async fn execute(self) -> anyhow::Result<()> {
+        match self {
+            Self::Init => commands::init()?,
+            Self::Run { yes } => commands::run(yes).await?,
+            Self::GenPatch { commit, filename } => {
+                commands::gen_patch(commit, filename)?;
+            }
+            Self::PrFetch {
+                pr,
+                remote,
+                branch,
+                commit,
+                checkout,
+            } => commands::pr_fetch(pr, remote, branch, commit, checkout).await?,
+            Self::BranchFetch {
+                remote,
+                commit,
+                checkout,
+            } => commands::branch_fetch(remote, commit, checkout).await?,
+        }
+
+        Ok(())
+    }
 }
 
 /// Styles for the CLI
