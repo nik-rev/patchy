@@ -12,7 +12,7 @@ use crate::git_commands::Commit;
 
 /// Patchy automatically
 #[derive(Parser)]
-#[command(styles = STYLES)]
+#[command(version, styles = STYLES, long_about = None)]
 pub struct Args {
     #[command(subcommand)]
     pub command: Command,
@@ -50,7 +50,7 @@ pub enum Command {
         #[arg(short, long)]
         branch: Option<String>,
         /// When fetching this PR, reset to this commit
-        #[arg(short('C'), long)]
+        #[arg(short = 'C', long)]
         commit: Option<Commit>,
         /// Check out the first fetched pull request
         #[arg(short, long)]
@@ -63,7 +63,7 @@ pub enum Command {
         /// The final part (`/branch`) is optional and defaults to `main`
         remote: Remote,
         /// When fetching this branch, reset to this commit
-        #[arg(short('C'), long)]
+        #[arg(short = 'C', long)]
         commit: Option<Commit>,
         /// Check out the fetched branch
         #[arg(short, long)]

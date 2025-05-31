@@ -8,10 +8,10 @@ use tap::Pipe;
 
 use crate::git_commands::Commit;
 
-/// Patchy automatically
+/// A tool which makes it easy to declaratively manage personal forks by automatically merging pull requests
 #[derive(Parser)]
-#[command(styles = STYLES)]
-pub struct Args {
+#[command(version, author = "Nik Revenco, pm@nikrev.com", styles = STYLES)]
+pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
 }
