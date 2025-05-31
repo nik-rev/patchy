@@ -35,10 +35,7 @@ pub async fn branch_fetch(
                         info.branch.local_branch_name
                     );
                 } else {
-                    success!(
-                        "Automatically checked out the first branch: {}",
-                        info.branch.local_branch_name
-                    );
+                    success!("checked out: {}", info.branch.local_branch_name);
                 }
             }
         }
