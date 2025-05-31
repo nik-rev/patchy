@@ -4,7 +4,6 @@ use anyhow::anyhow;
 use colored::Colorize as _;
 
 use crate::backup::{files, restore};
-use crate::cli::run::Run;
 use crate::commands::pr_fetch::ignore_octothorpe;
 use crate::git_commands::{
     Commit, GIT, GIT_ROOT, add_remote_branch, checkout_from_remote, clean_up_remote,
@@ -29,12 +28,12 @@ pub fn parse_if_maybe_hash(input: &str, syntax: &str) -> (String, Option<Commit>
     } else {
         // They want to use a specific commit
         let output: String = parts[0..len - 1].iter().map(|s| String::from(*s)).collect();
-        let commit_hash = Commit::parse(parts[len - 1].to_owned()).ok();
+        let commit_hash = (parts[len - 1].to_owned()).parse::<Commit>().ok();
         (output, commit_hash)
     }
 }
 
-pub async fn run(args: Run) -> anyhow::Result<()> {
+pub async fn run(yes: bool) -> anyhow::Result<()> {
     println!();
 
     let config_path = GIT_ROOT.join(CONFIG_ROOT.as_str());
@@ -49,7 +48,7 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
 
         // We don't want to have *any* sort of prompt when using the -y flag since that
         // would be problematic in scripts
-        if !args.yes
+        if !yes
             && confirm_prompt!(
                 "Would you like us to run {} {} to initialize it?",
                 "patchy".bright_blue(),
@@ -60,7 +59,7 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
                 fail!("{err}");
                 process::exit(1);
             }
-        } else if args.yes {
+        } else if yes {
             eprintln!(
                 "You can create it with {} {}",
                 "patchy".bright_blue(),
@@ -241,7 +240,7 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
         &info.branch.local_branch_name,
     )?;
 
-    if args.yes
+    if yes
         || confirm_prompt!(
             "Overwrite branch {}? This is irreversible.",
             config.local_branch.cyan()
@@ -257,7 +256,7 @@ pub async fn run(args: Run) -> anyhow::Result<()> {
             &temporary_branch,
             &config.local_branch,
         ])?;
-        if args.yes {
+        if yes {
             log::info!(
                 "Overwrote branch {} since you supplied the {} flag",
                 config.local_branch.cyan(),

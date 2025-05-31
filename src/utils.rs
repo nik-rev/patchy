@@ -33,7 +33,7 @@ pub fn normalize_commit_msg(commit_msg: &str) -> String {
 }
 
 pub fn display_link(text: &str, url: &str) -> String {
-    format!("\u{1b}]8;;{}\u{1b}\\{}\u{1b}]8;;\u{1b}\\", url, text)
+    format!("\u{1b}]8;;{url}\u{1b}\\{text}\u{1b}]8;;\u{1b}\\")
 }
 
 pub async fn make_request(url: &str) -> anyhow::Result<String> {
@@ -78,28 +78,6 @@ macro_rules! fail {
             format!($($arg)*))
     }};
 }
-
-// #[macro_export]
-// macro_rules! trace {
-//     ($($arg:tt)*) => {{
-//         if *$crate::flags::IS_VERBOSE {
-//             eprintln!("  {}{}",
-//
-// colored::Colorize::bold(colored::Colorize::bright_yellow("--verbose: ")),
-//                 format!($($arg)*))
-//         }
-//     }};
-// }
-
-// #[macro_export]
-// macro_rules! info {
-//     ($($arg:tt)*) => {{
-//         eprintln!("{}{}{}",
-//             $crate::INDENT,
-//             colored::Colorize::bright_blue(colored::Colorize::bold("i ")),
-//             format!($($arg)*))
-//     }};
-// }
 
 /// Interact with the user to get a yes or a no answer
 #[macro_export]

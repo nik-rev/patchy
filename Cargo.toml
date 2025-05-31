@@ -45,6 +45,12 @@ documented = "0.9"
 log = "0.4"
 env_logger = "0.11"
 nutype = "0.6"
+clap = { version = "4.5.39", features = [
+  "derive",
+  "wrap_help",
+  "unstable-markdown",
+] }
+tap = "1.0.1"
 
 [dev-dependencies]
 pretty_assertions = "1.4"
@@ -61,3 +67,7 @@ lto = "fat"
 [lints.clippy]
 pedantic = { priority = -1, level = "warn" }
 nursery = { priority = -1, level = "warn" }
+missing_errors_doc = "allow"
+too_many_lines = "allow"
+must_use_candidate = "allow"
+missing_const_for_fn = "allow"
