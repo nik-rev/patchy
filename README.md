@@ -69,6 +69,15 @@ pull-requests = [
   "11164",
 ]
 
+# List of branches from other repositories to merge
+# Format: "owner/repo/branch"
+branches = [
+  # Include master branch from another repo
+  "helix-editor/helix/master",
+  # Include a specific commit from a branch
+  "helix-editor/helix/master @ 6049f20",
+]
+
 # An optional list of patches to apply, more on them later
 patches = ["remove-tab"]
 ```
@@ -132,6 +141,11 @@ remote-branch = "main @ cfd225baedbb5fb9cbc9742f91244fa50882b580"
 pull-requests = [
    "145 @ fccc58957eece10d0818dfa000bf5123e26ee32f",
    "88 @ a556aeef3736a3b6b79bb9507d26224f5c0c3449"
+]
+
+branches = [
+   "helix-editor/helix/master @ 6049f20b7e3ca83f832790a0ad84d85a56205d47",
+   "other-user/fork/feature-branch @ 3a56b1c"
 ]
 ```
 
