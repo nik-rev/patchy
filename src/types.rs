@@ -6,8 +6,12 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "kebab-case")]
 pub struct Configuration {
     pub local_branch: String,
+    #[serde(default)]
     pub patches: IndexSet<String>,
+    #[serde(default)]
     pub pull_requests: Vec<String>,
+    #[serde(default)]
+    pub branches: Vec<String>,
     pub remote_branch: String,
     pub repo: String,
 }

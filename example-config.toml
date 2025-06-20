@@ -54,6 +54,30 @@ local-branch = "patchy"
 
 pull-requests = []
 
+# List of branches from other repositories to merge into the repository
+# Format: "owner/repo/branch"
+#
+# Examples
+#
+# branches = [
+#   "helix-editor/helix/master",
+#   "other-user/fork/feature-branch"
+# ]
+#
+# The above always fetch the latest commit for each branch.
+#
+# To use a specific commit, use the following syntax:
+#   "<owner/repo/branch> @ <hash-of-commit>"
+#
+# so for example:
+#
+# branches = [
+#   "helix-editor/helix/master",
+#   "other-user/fork/feature-branch @ a556aeef3736a3b6b79bb9507d26224f5c0c3449"
+# ]
+
+branches = []
+
 # Optional: A list of patches to apply
 #
 # A patch allows you to do specify custom commits and not have to rely on there being a pull request for that change

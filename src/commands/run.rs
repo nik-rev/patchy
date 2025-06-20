@@ -130,54 +130,135 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         &info.remote.local_remote_alias,
     )?;
 
-    if config.pull_requests.is_empty() {
+    let has_pull_requests = !config.pull_requests.is_empty();
+    let has_branches = !config.branches.is_empty();
+
+    if !has_pull_requests && !has_branches {
         log::info!(
-            "You haven't specified any pull requests to fetch in your config, {}",
+            "You haven't specified any pull requests or branches to fetch in your config, {}",
             display_link(
                 "see the instructions on how to configure patchy.",
                 "https://github.com/nik-rev/patchy?tab=readme-ov-file#config"
             )
         );
     } else {
-        // TODO: make this concurrent, see https://users.rust-lang.org/t/processing-subprocesses-concurrently/79638/3
-        // Git cannot handle multiple threads executing commands in the same repository,
-        // so we can't use threads, but we can run processes in the background
-        for pull_request in &config.pull_requests {
-            let pull_request = ignore_octothorpe(pull_request);
-            let (pull_request, commit_hash) = parse_if_maybe_hash(&pull_request, " @ ");
-            // TODO: refactor this to not use such deep nesting
-            match git::fetch_pull_request(&config.repo, &pull_request, None, commit_hash.as_ref())
+        // Process pull requests
+        if has_pull_requests {
+            // TODO: make this concurrent, see https://users.rust-lang.org/t/processing-subprocesses-concurrently/79638/3
+            // Git cannot handle multiple threads executing commands in the same repository,
+            // so we can't use threads, but we can run processes in the background
+            for pull_request in &config.pull_requests {
+                let pull_request = ignore_octothorpe(pull_request);
+                let (pull_request, commit_hash) = parse_if_maybe_hash(&pull_request, " @ ");
+                // TODO: refactor this to not use such deep nesting
+                match git::fetch_pull_request(
+                    &config.repo,
+                    &pull_request,
+                    None,
+                    commit_hash.as_ref(),
+                )
                 .await
-            {
-                Ok((response, info)) => {
-                    match git::merge_pull_request(
-                        &info,
-                        &pull_request,
-                        &response.title,
-                        &response.html_url,
-                    ) {
-                        Ok(()) => {
-                            success!(
-                                "Merged pull request {}",
-                                display_link(
-                                    &format!(
-                                        "{}{}{}{}",
-                                        "#".bright_blue(),
-                                        pull_request.bright_blue(),
-                                        " ".bright_blue(),
-                                        &response.title.bright_blue().italic()
+                {
+                    Ok((response, info)) => {
+                        match git::merge_pull_request(
+                            &info,
+                            &pull_request,
+                            &response.title,
+                            &response.html_url,
+                        ) {
+                            Ok(()) => {
+                                success!(
+                                    "Merged pull request {}",
+                                    display_link(
+                                        &format!(
+                                            "{}{}{}{}",
+                                            "#".bright_blue(),
+                                            pull_request.bright_blue(),
+                                            " ".bright_blue(),
+                                            &response.title.bright_blue().italic()
+                                        ),
+                                        &response.html_url
                                     ),
-                                    &response.html_url
-                                ),
-                            );
-                        }
-                        Err(err) => {
-                            fail!("{err}");
+                                );
+                            }
+                            Err(err) => {
+                                fail!("{err}");
+                            }
                         }
                     }
+                    Err(err) => {
+                        fail!("Could not fetch branch from remote\n{err}");
+                    }
                 }
-                Err(err) => {
-                    fail!("Could not fetch branch from remote\n{err}");
+            }
+        }
+
+        // Process branches
+        if has_branches {
+            for branch_entry in &config.branches {
+                let (branch_path, commit_hash) = parse_if_maybe_hash(branch_entry, " @ ");
+
+                // Parse the branch path into owner/repo/branch format
+                let parts: Vec<&str> = branch_path.split('/').collect();
+                if parts.len() < 3 {
+                    fail!(
+                        "Invalid branch format: {}. Expected format: owner/repo/branch",
+                        branch_path
+                    );
+                    continue;
+                }
+
+                let owner = parts[0];
+                let repo = parts[1];
+                let branch_name = parts[2..].join("/");
+
+                let remote = crate::cli::Remote {
+                    owner: owner.to_string(),
+                    repo: repo.to_string(),
+                    branch: branch_name.clone(),
+                };
+
+                match git::fetch_branch(&remote, commit_hash.as_ref()).await {
+                    Ok((_, info)) => {
+                        match git::merge_into_main(
+                            &info.branch.local_branch_name,
+                            &info.branch.upstream_branch_name,
+                        ) {
+                            Ok(_) => {
+                                success!(
+                                    "Merged branch {}/{}/{} {}",
+                                    owner.bright_blue(),
+                                    repo.bright_blue(),
+                                    branch_name.bright_blue(),
+                                    commit_hash
+                                        .map(|hash| format!(
+                                            "at commit {}",
+                                            hash.as_ref().bright_yellow()
+                                        ))
+                                        .unwrap_or_default()
+                                );
+
+                                // Clean up the remote branch
+                                if let Err(err) = git::delete_remote_and_branch(
+                                    &info.remote.local_remote_alias,
+                                    &info.branch.local_branch_name,
+                                ) {
+                                    fail!("Failed to clean up branch: {err}");
+                                }
+                            }
+                            Err(err) => {
+                                fail!("{err}");
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        fail!(
+                            "Could not fetch branch {}/{}/{}: {err}",
+                            owner,
+                            repo,
+                            branch_name
+                        );
+                    }
                 }
             }
         }
