@@ -390,7 +390,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a394bb35929b58f9a5fd418f7c6b17a4b616efcc1e53e6995ca123948f87e5fa"
 dependencies = [
  "convert_case",
- "itertools",
+ "itertools 0.13.0",
  "optfield",
  "proc-macro2",
  "quote",
@@ -824,6 +824,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1065,6 +1074,7 @@ dependencies = [
  "documented",
  "env_logger",
  "indexmap",
+ "itertools 0.14.0",
  "log",
  "nutype",
  "once_cell",

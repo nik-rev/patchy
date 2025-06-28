@@ -12,7 +12,7 @@ use colored::Colorize as _;
 use crate::git::{self, GIT_ROOT, git};
 use crate::github_api::{Branch, Remote, RemoteBranch};
 use crate::utils::{display_link, with_uuid};
-use crate::{CONFIG_PATH, CONFIG_ROOT, confirm_prompt};
+use crate::{CONFIG_FILE, CONFIG_FILE_PATH, CONFIG_PATH, CONFIG_ROOT, commands, confirm_prompt};
 
 /// Backup for a file
 struct FileBackup {
@@ -24,10 +24,32 @@ struct FileBackup {
 
 /// Run patchy, if `yes` then there will be no prompt
 pub async fn run(yes: bool) -> anyhow::Result<()> {
-    let Some(config) = Config::read(yes)? else {
-        // if it's Ok(None), we have wrote the default config
+    let root = CONFIG_ROOT.as_str();
+
+    let Ok(config_string) = fs::read_to_string(&*CONFIG_FILE_PATH) else {
+        log::error!("Could not find configuration file at {root}/{CONFIG_FILE}");
+
+        // We don't want to have *any* sort of prompt when using the -y flag since that
+        // would be problematic in scripts
+        if !yes && confirm_prompt!("Would you like us to run `patchy init` to initialize it?",) {
+            commands::init()?;
+        } else if yes {
+            log::info!("You can create it with `patchy init`",);
+        } else {
+            // user said "no" in the prompt, so we don't do any initializing
+        }
+
+        // We don't want to read the default configuration file as config_string. Since
+        // it's empty there's no reason why the user would want to run it.
+
         return Ok(());
     };
+
+    log::trace!("Using configuration file {}", CONFIG_FILE_PATH.display());
+
+    let config = toml::from_str::<Config>(&config_string).map_err(|err| {
+        anyhow!("Could not parse `{root}/{CONFIG_FILE}` configuration file:\n{err}",)
+    })?;
 
     let Ref {
         item: remote_branch,
@@ -145,34 +167,14 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
     }
 
     // Process branches
-    for Ref {
-        item: branch_path,
-        commit: commit_hash,
-    } in &config.branches
-    {
-        // Parse the branch path into owner/repo/branch format
-        let parts: Vec<&str> = branch_path.split('/').collect();
-        if parts.len() < 3 {
-            log::error!("Invalid branch format: {branch_path}. Expected format: owner/repo/branch");
+    for remote in &config.branches {
+        let owner = &remote.owner;
+        let repo = &remote.repo;
+        let branch = &remote.branch;
+        let Ok((_, info)) = git::fetch_branch(remote).await.inspect_err(|err| {
+            log::error!("failed to fetch branch {owner}/{repo}/{branch}: {err}");
+        }) else {
             continue;
-        }
-
-        let owner = parts[0];
-        let repo = parts[1];
-        let branch_name = parts[2..].join("/");
-
-        let remote = crate::cli::Remote {
-            owner: owner.to_string(),
-            repo: repo.to_string(),
-            branch: branch_name.clone(),
-        };
-
-        let info = match git::fetch_branch(&remote, commit_hash.as_ref()).await {
-            Ok((_, info)) => info,
-            Err(err) => {
-                log::error!("Could not fetch branch {owner}/{repo}/{branch_name}: {err}");
-                continue;
-            }
         };
 
         if let Err(err) = git::merge_into_main(
@@ -186,8 +188,9 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
             "Merged branch {}/{}/{} {}",
             owner.bright_blue(),
             repo.bright_blue(),
-            branch_name.bright_blue(),
-            commit_hash
+            branch.bright_blue(),
+            remote
+                .commit
                 .as_ref()
                 .map(|hash| format!("at commit {}", hash.as_ref().bright_yellow()))
                 .unwrap_or_default()

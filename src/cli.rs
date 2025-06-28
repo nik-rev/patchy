@@ -1,14 +1,13 @@
 //! Parse the command-line arguments
 
-use std::{path::PathBuf, str::FromStr};
+use std::path::PathBuf;
 
 use clap::{
     CommandFactory as _, Parser, Subcommand,
     builder::styling::{AnsiColor, Effects},
 };
-use tap::Pipe as _;
 
-use crate::{commands, commit::Commit};
+use crate::{commands, config::Commit, config::Remote};
 
 /// A tool which makes it easy to declaratively manage personal forks by automatically merging pull requests
 #[derive(Parser, Debug)]
@@ -134,41 +133,6 @@ pub struct Branch {
     pub commit: Option<Commit>,
 }
 
-/// Example: `helix-editor/helix/master`
-#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Default)]
-pub struct Remote {
-    /// Example: `helix-editor`
-    pub owner: String,
-    /// Example: `helix`
-    pub repo: String,
-    /// Example: `master`
-    pub branch: String,
-}
-
-impl Remote {
-    /// Default branch for a remote
-    const DEFAULT_BRANCH: &str = "main";
-}
-
-impl FromStr for Remote {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.split_once('/')
-            .ok_or_else(|| "Expected format: `owner/repo`".to_string())?
-            .pipe(|(owner, rest)| {
-                rest.split_once('/')
-                    .unwrap_or((rest, Self::DEFAULT_BRANCH))
-                    .pipe(|(repo, branch)| Self {
-                        owner: owner.to_string(),
-                        repo: repo.to_string(),
-                        branch: branch.to_string(),
-                    })
-            })
-            .pipe(Ok)
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -180,15 +144,19 @@ mod test {
             Remote {
                 owner: "helix-editor".to_string(),
                 repo: "helix".to_string(),
-                branch: "main".to_string()
+                branch: "main".to_string(),
+                commit: None
             }
         );
         assert_eq!(
-            "helix-editor/helix/master".parse::<Remote>().unwrap(),
+            "helix-editor/helix/master @ 1a2b3c"
+                .parse::<Remote>()
+                .unwrap(),
             Remote {
                 owner: "helix-editor".to_string(),
                 repo: "helix".to_string(),
-                branch: "master".to_string()
+                branch: "master".to_string(),
+                commit: Some(Commit::try_new("1a2b3c").unwrap())
             }
         );
         "helix-editor".parse::<Remote>().unwrap_err();

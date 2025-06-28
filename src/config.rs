@@ -1,12 +1,13 @@
 //! Patchy's config
 
-use anyhow::anyhow;
-use std::fs;
+use anyhow::bail;
+use itertools::Itertools;
+use nutype::nutype;
+use std::str::FromStr;
+use tap::Pipe as _;
 
 use indexmap::IndexSet;
 use serde::Deserialize;
-
-use crate::{CONFIG_FILE, CONFIG_FILE_PATH, CONFIG_ROOT, commands, commit::Commit, confirm_prompt};
 
 /// Represents the TOML config
 #[derive(Deserialize, Debug, Eq, PartialEq)]
@@ -22,45 +23,81 @@ pub struct Config {
     pub pull_requests: Vec<Ref>,
     /// List of branches to apply
     #[serde(default)]
-    pub branches: Vec<Ref>,
+    pub branches: Vec<Remote>,
     /// Branch of the remote repository
     pub remote_branch: Ref,
     /// Remote repository where all of the `branches` and `pull_requests` are
     pub repo: String,
 }
 
-impl Config {
-    /// Read the `Config`. If `yes`, will not ask for any confirmation
-    pub fn read(yes: bool) -> anyhow::Result<Option<Self>> {
-        let root = CONFIG_ROOT.as_str();
+/// Represents e.g. `helix-editor/helix/master @ 1a2b3c`
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct Remote {
+    /// e.g. `helix-editor`
+    pub owner: String,
+    /// e.g. `helix`
+    pub repo: String,
+    /// e.g. `master`
+    pub branch: String,
+    /// e.g. `1a2b3c`
+    pub commit: Option<Commit>,
+}
 
-        let Ok(config_string) = fs::read_to_string(&*CONFIG_FILE_PATH) else {
-            log::error!("Could not find configuration file at {root}/{CONFIG_FILE}");
+impl Remote {
+    /// Default branch for a remote
+    const DEFAULT_BRANCH: &str = "main";
+}
 
-            // We don't want to have *any* sort of prompt when using the -y flag since that
-            // would be problematic in scripts
-            if !yes && confirm_prompt!("Would you like us to run `patchy init` to initialize it?",)
-            {
-                commands::init()?;
-            } else if yes {
-                log::info!("You can create it with `patchy init`",);
-            } else {
-                // user said "no" in the prompt, so we don't do any initializing
-            }
+impl FromStr for Remote {
+    type Err = anyhow::Error;
 
-            // We don't want to read the default configuration file as config_string. Since
-            // it's empty there's no reason why the user would want to run it.
+    /// Parse remotes of the form:
+    ///
+    /// ```text
+    /// helix-editor/helix/master @ 1a2b3c
+    /// ^^^^^^^^^^^ owner  ^^^^^^ branch
+    ///              ^^^^^ repo     ^^^^^^ commit
+    /// ```
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let Ref { item, commit } = Ref::new(s);
 
-            return Ok(None);
+        let mut parts = item.split('/');
+        let Some([owner, repo]) = parts.next_array() else {
+            bail!("Invalid branch format: {item}. Expected format: owner/repo/branch");
         };
 
-        log::trace!("Using configuration file {}", CONFIG_FILE_PATH.display());
+        let branch = parts
+            // insert back the removed '/', this could be part of the branch itself
+            // e.g. in `helix-editor/helix/master/main` the branch is considered to be `master/main`
+            .pipe(|it| Itertools::intersperse(it, "/"))
+            .collect::<String>()
+            .pipe(|s| {
+                if s.is_empty() {
+                    // if branch name is ommitted (e.g. `helix-editor/helix`)
+                    // then use the default branch name
+                    Self::DEFAULT_BRANCH.to_string()
+                } else {
+                    s
+                }
+            });
 
-        let config = toml::from_str::<Config>(&config_string).map_err(|err| {
-            anyhow!("Could not parse `{root}/{CONFIG_FILE}` configuration file:\n{err}",)
-        })?;
+        Ok(Self {
+            owner: owner.to_string(),
+            repo: repo.to_string(),
+            branch,
+            commit,
+        })
+    }
+}
 
-        Ok(Some(config))
+impl<'de> Deserialize<'de> for Remote {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        String::deserialize(deserializer)?
+            .parse::<Remote>()
+            .map_err(serde::de::Error::custom)
     }
 }
 
@@ -105,11 +142,91 @@ impl<'de> Deserialize<'de> for Ref {
     }
 }
 
+/// Represents a git commit
+#[nutype(
+    validate(not_empty, predicate = is_valid_commit_hash),
+    derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef)
+)]
+pub struct Commit(String);
+
+/// Does not check if the commit hash exists, just checks if it is potentially
+/// valid A commit hash can consist of `a-f` and `0-9` characters
+pub fn is_valid_commit_hash(hash: &str) -> bool {
+    hash.chars().all(|ch| ch.is_ascii_hexdigit())
+}
+
+impl FromStr for Commit {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_new(s).map_err(|err| match err {
+            CommitError::NotEmptyViolated => "commit cannot be empty".to_string(),
+            CommitError::PredicateViolated => format!("invalid commit hash: {s}"),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use indexmap::indexset;
 
     use super::*;
+
+    #[test]
+    fn parse_remote() {
+        let cases = [
+            (
+                "helix-editor/helix/master @ 1a2b3c",
+                Remote {
+                    owner: "helix-editor".to_string(),
+                    repo: "helix".to_string(),
+                    branch: "master".to_string(),
+                    commit: Some(Commit::try_new("1a2b3c".to_string()).unwrap()),
+                },
+            ),
+            (
+                "helix-editor/helix @ deadbeef",
+                Remote {
+                    owner: "helix-editor".to_string(),
+                    repo: "helix".to_string(),
+                    branch: Remote::DEFAULT_BRANCH.to_string(),
+                    commit: Some(Commit::try_new("deadbeef".to_string()).unwrap()),
+                },
+            ),
+            (
+                "helix-editor/helix/feat/feature-x @ abc123",
+                Remote {
+                    owner: "helix-editor".to_string(),
+                    repo: "helix".to_string(),
+                    branch: "feat/feature-x".to_string(),
+                    commit: Some(Commit::try_new("abc123".to_string()).unwrap()),
+                },
+            ),
+            (
+                "owner/repo/branch",
+                Remote {
+                    owner: "owner".to_string(),
+                    repo: "repo".to_string(),
+                    branch: "branch".to_string(),
+                    commit: None,
+                },
+            ),
+            (
+                "owner/repo",
+                Remote {
+                    owner: "owner".to_string(),
+                    repo: "repo".to_string(),
+                    branch: Remote::DEFAULT_BRANCH.to_string(),
+                    commit: None,
+                },
+            ),
+        ];
+
+        for (input, expected) in cases {
+            let result = Remote::from_str(input);
+            assert_eq!(result.unwrap(), expected, "input: {input:?}",);
+        }
+    }
 
     #[test]
     fn parse_config() {

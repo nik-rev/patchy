@@ -4,6 +4,7 @@
 //! - Extract into a separate module, put it behind some more nice API
 //! - Use `gix`? Or anyways, we could go without spawning an entire process each
 //!   time we want to interact with Git
+use crate::config::Commit;
 use std::path::{Path, PathBuf};
 use std::process::{self, Output};
 use std::sync::LazyLock;
@@ -13,7 +14,6 @@ use anyhow::{Result, anyhow, bail};
 use colored::Colorize as _;
 use reqwest::Client;
 
-use crate::commit::Commit;
 use crate::github_api::{GitHubResponse, Remote, RemoteBranch, Repo};
 use crate::utils::{display_link, make_request, normalize_commit_msg, with_uuid};
 
@@ -297,10 +297,7 @@ fn find_first_available_branch(branch: &str) -> AvailableBranch {
 }
 
 /// Fetch the branch of `remote` at the given `commit`
-pub async fn fetch_branch(
-    remote: &crate::cli::Remote,
-    commit: Option<&Commit>,
-) -> Result<(Repo, RemoteBranch)> {
+pub async fn fetch_branch(remote: &crate::config::Remote) -> Result<(Repo, RemoteBranch)> {
     let url = format!(
         "https://api.github.com/repos/{}/{}",
         remote.owner, remote.repo
@@ -329,7 +326,7 @@ pub async fn fetch_branch(
         },
     };
 
-    add_remote_branch(&info, commit).map_err(|err| {
+    add_remote_branch(&info, remote.commit.as_ref()).map_err(|err| {
         anyhow!(
             "Could not add remote branch {}/{}, skipping.\n{err}",
             remote.owner,

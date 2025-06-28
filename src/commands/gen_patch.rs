@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use anyhow::bail;
 
 use crate::CONFIG_PATH;
-use crate::commit::Commit;
+use crate::config::Commit;
 use crate::git::git;
 use crate::utils::normalize_commit_msg;
 

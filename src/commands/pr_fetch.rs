@@ -3,8 +3,7 @@
 use anyhow::{Context as _, anyhow};
 use colored::Colorize as _;
 
-use crate::cli::Remote;
-use crate::commit::Commit;
+use crate::config::{Commit, Remote};
 use crate::git::{fetch_pull_request, git};
 
 /// Fetch the given `pr` of `remote` at `commit` and store it in local `branch`
@@ -37,6 +36,7 @@ pub async fn pr_fetch(
                     owner: owner.to_string(),
                     repo: repo.to_string(),
                     branch: "main".to_string(),
+                    commit: None,
                 })
             } else {
                 Err(err())

@@ -7,7 +7,6 @@ use std::sync::LazyLock;
 
 mod cli;
 mod commands;
-mod commit;
 mod config;
 mod git;
 mod github_api;
