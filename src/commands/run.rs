@@ -1,5 +1,7 @@
 //! `run` subcommand
 
+use crate::config::{Config, Ref};
+use std::ffi::OsString;
 use std::fs::{self, File};
 use std::io::Write as _;
 use std::path::PathBuf;
@@ -7,45 +9,29 @@ use std::path::PathBuf;
 use anyhow::{anyhow, bail};
 use colored::Colorize as _;
 
-use crate::commands::pr_fetch::ignore_octothorpe;
 use crate::git::{self, GIT_ROOT, git};
-use crate::github_api::{Branch, BranchAndRemote, Configuration, Remote};
-use crate::utils::{display_link, parse_if_maybe_hash, with_uuid};
-use crate::{CONFIG_FILE, CONFIG_ROOT, commands, confirm_prompt};
+use crate::github_api::{Branch, BranchAndRemote, Remote};
+use crate::utils::{display_link, with_uuid};
+use crate::{CONFIG_PATH, CONFIG_ROOT, confirm_prompt};
+
+/// Backup for a file
+struct FileBackup {
+    /// Name of the file to backup in `.patchy` config directory
+    filename: OsString,
+    /// Contents of the backed up file
+    contents: String,
+}
 
 /// Run patchy, if `yes` then there will be no prompt
 pub async fn run(yes: bool) -> anyhow::Result<()> {
-    let root = CONFIG_ROOT.as_str();
-    let config_path = GIT_ROOT.join(root);
-
-    let config_file_path = config_path.join(CONFIG_FILE);
-
-    let Ok(config_raw) = fs::read_to_string(config_file_path.clone()) else {
-        log::error!("Could not find configuration file at {root}/{CONFIG_FILE}",);
-
-        // We don't want to have *any* sort of prompt when using the -y flag since that
-        // would be problematic in scripts
-        if !yes && confirm_prompt!("Would you like us to run `patchy init` to initialize it?",) {
-            commands::init()?;
-        } else if yes {
-            log::info!("You can create it with `patchy init`",);
-        } else {
-            // user said "no" in the prompt, so we don't do any initializing
-        }
-
-        // We don't want to read the default configuration file as config_raw. Since
-        // it's empty there's no reason why the user would want to run it.
-
+    let Some(config) = Config::read(yes)? else {
         return Ok(());
     };
 
-    log::trace!("Using configuration file {}", config_file_path.display());
-
-    let config = toml::from_str::<Configuration>(&config_raw).map_err(|err| {
-        anyhow!("Could not parse `{root}/{CONFIG_FILE}` configuration file:\n{err}",)
-    })?;
-
-    let (remote_branch, commit_hash) = parse_if_maybe_hash(&config.remote_branch, " @ ");
+    let Ref {
+        item: remote_branch,
+        commit,
+    } = config.remote_branch;
 
     if config.repo.is_empty() {
         bail!(
@@ -57,40 +43,35 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         );
     }
 
-    let config_files = fs::read_dir(&config_path).map_err(|err| {
+    // --- Backup all files in the `.patchy` config directory
+
+    let config_files = fs::read_dir(&*CONFIG_PATH).map_err(|err| {
         anyhow!(
             "Failed to read files in directory `{}`:\n{err}",
-            &config_path.display()
+            &CONFIG_PATH.display()
         )
     })?;
 
-    let backed_up_files = {
-        let mut backups = Vec::new();
+    let mut backed_up_files = Vec::new();
 
-        for config_file in config_files {
-            let config_file = config_file?;
+    for config_file in config_files.flatten() {
+        let file_backup = fs::read_to_string(config_file.path())
+            .map_err(|err| anyhow!("{err}"))
+            .map(|contents| FileBackup {
+                filename: config_file.file_name(),
+                contents,
+            })
+            .map_err(|err| {
+                anyhow!(
+                    "failed to backup patchy config file {} for configuration files:\n{err}",
+                    config_file.file_name().display()
+                )
+            })?;
 
-            let path = config_file.path();
-            let backup = fs::read_to_string(&path)
-                .map_err(|err| anyhow!("{err}"))
-                .and_then(|contents| {
-                    let filename = config_file.file_name();
-                    let mut destination_backed_up =
-                        tempfile::tempfile().map_err(|err| anyhow!("{err}"))?;
+        backed_up_files.push(file_backup);
+    }
 
-                    write!(destination_backed_up, "{contents}")?;
-
-                    Ok((filename, destination_backed_up, contents))
-                })
-                .map_err(|err| {
-                    anyhow!("Failed to create backups for configuration files:\n{err}")
-                })?;
-
-            backups.push(backup);
-        }
-
-        backups
-    };
+    // ---
 
     let info = BranchAndRemote {
         branch: Branch {
@@ -103,7 +84,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         },
     };
 
-    git::add_remote_branch(&info, commit_hash.as_ref())?;
+    git::add_remote_branch(&info, commit.as_ref())?;
 
     let previous_branch = git::checkout_from_remote(
         &info.branch.local_branch_name,
@@ -127,22 +108,19 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
             // TODO: make this concurrent, see https://users.rust-lang.org/t/processing-subprocesses-concurrently/79638/3
             // Git cannot handle multiple threads executing commands in the same repository,
             // so we can't use threads, but we can run processes in the background
-            for pull_request in &config.pull_requests {
-                let pull_request = ignore_octothorpe(pull_request);
-                let (pull_request, commit_hash) = parse_if_maybe_hash(&pull_request, " @ ");
+            for Ref {
+                item: pull_request,
+                commit,
+            } in &config.pull_requests
+            {
                 // TODO: refactor this to not use such deep nesting
-                match git::fetch_pull_request(
-                    &config.repo,
-                    &pull_request,
-                    None,
-                    commit_hash.as_ref(),
-                )
-                .await
+                match git::fetch_pull_request(&config.repo, pull_request, None, commit.as_ref())
+                    .await
                 {
                     Ok((response, info)) => {
                         match git::merge_pull_request(
                             &info,
-                            &pull_request,
+                            pull_request,
                             &response.title,
                             &response.html_url,
                         ) {
@@ -175,9 +153,11 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
 
         // Process branches
         if has_branches {
-            for branch_entry in &config.branches {
-                let (branch_path, commit_hash) = parse_if_maybe_hash(branch_entry, " @ ");
-
+            for Ref {
+                item: branch_path,
+                commit: commit_hash,
+            } in &config.branches
+            {
                 // Parse the branch path into owner/repo/branch format
                 let parts: Vec<&str> = branch_path.split('/').collect();
                 if parts.len() < 3 {
@@ -210,6 +190,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
                                     repo.bright_blue(),
                                     branch_name.bright_blue(),
                                     commit_hash
+                                        .as_ref()
                                         .map(|hash| format!(
                                             "at commit {}",
                                             hash.as_ref().bright_yellow()
@@ -249,8 +230,13 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         bail!("Could not create directory {}\n{err}", CONFIG_ROOT.as_str());
     }
 
-    for (file_name, _file, contents) in &backed_up_files {
-        let path = GIT_ROOT.join(PathBuf::from(CONFIG_ROOT.as_str()).join(file_name));
+    // Restore all the backup files
+
+    for FileBackup {
+        filename, contents, ..
+    } in &backed_up_files
+    {
+        let path = GIT_ROOT.join(PathBuf::from(CONFIG_ROOT.as_str()).join(filename));
         let mut file =
             File::create(&path).map_err(|err| anyhow!("failed to restore backup: {err}"))?;
 

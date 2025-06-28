@@ -7,17 +7,6 @@ use crate::cli::Remote;
 use crate::commit::Commit;
 use crate::git::{fetch_pull_request, git};
 
-/// Allow users to prefix their PRs with octothorpe, e.g. #12345 instead of
-/// 12345. This is just a QOL addition since some people may use it due to habit
-pub fn ignore_octothorpe(arg: &str) -> String {
-    if arg.starts_with('#') {
-        arg.get(1..).unwrap_or_default()
-    } else {
-        arg
-    }
-    .into()
-}
-
 /// Fetch the given `pr` of `remote` at `commit` and store it in local `branch`
 ///
 /// If `checkout`, `--checkout` the `branch`
