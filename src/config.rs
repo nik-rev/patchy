@@ -9,7 +9,7 @@ use serde::Deserialize;
 use crate::{CONFIG_FILE, CONFIG_FILE_PATH, CONFIG_ROOT, commands, commit::Commit, confirm_prompt};
 
 /// Represents the TOML config
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Eq, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
     /// Local branch where patchy will do all of its work
@@ -65,7 +65,7 @@ impl Config {
 }
 
 /// Represents any git item which may be associated with a commit
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Ref {
     /// Git item. E.g. branch, or remote which may associate with the `commit`
     pub item: String,
@@ -76,13 +76,7 @@ pub struct Ref {
 impl Ref {
     /// Parses user inputs of the form `<head> @ <commit-hash>`
     pub fn new(input: &str) -> Self {
-        let parts: Vec<_> = input
-            // Allow users to prefix their PRs with octothorpe, e.g. `#12345` instead of
-            // `12345`. This is just a QOL addition since some people may use it due to habit
-            .strip_suffix('#')
-            .unwrap_or(input)
-            .split(" @ ")
-            .collect();
+        let parts: Vec<_> = input.split(" @ ").collect();
 
         let len = parts.len();
 
@@ -108,5 +102,59 @@ impl<'de> Deserialize<'de> for Ref {
         D: serde::Deserializer<'de>,
     {
         Ok(Ref::new(&String::deserialize(deserializer)?))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use indexmap::indexset;
+
+    use super::*;
+
+    #[test]
+    fn parse_config() {
+        let config = r#"
+repo = "helix-editor/helix"
+remote-branch = "master @ a1b2c4"
+
+local-branch = "patchy"
+
+pull-requests = ["10000", "10000", "454 @ a1b2c3", "1 @ a1b2c3"]
+
+patches = ['remove-tab']"#;
+
+        let conf = toml::from_str::<Config>(config).unwrap();
+
+        pretty_assertions::assert_eq!(
+            conf,
+            Config {
+                local_branch: "patchy".to_string(),
+                patches: indexset!["remove-tab".to_string()],
+                pull_requests: vec![
+                    Ref {
+                        item: "10000".to_string(),
+                        commit: None
+                    },
+                    Ref {
+                        item: "10000".to_string(),
+                        commit: None
+                    },
+                    Ref {
+                        item: "454".to_string(),
+                        commit: Some(Commit::try_new("a1b2c3").unwrap())
+                    },
+                    Ref {
+                        item: "1".to_string(),
+                        commit: Some(Commit::try_new("a1b2c3").unwrap())
+                    },
+                ],
+                branches: vec![],
+                remote_branch: Ref {
+                    item: "master".to_string(),
+                    commit: Some(Commit::try_new("a1b2c4").unwrap())
+                },
+                repo: "helix-editor/helix".to_string()
+            }
+        );
     }
 }
