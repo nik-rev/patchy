@@ -1,18 +1,21 @@
+//! `gen-patch` subcommand
+
 use std::fs;
 use std::path::PathBuf;
 
 use anyhow::bail;
 
+use crate::CONFIG_ROOT;
 use crate::commit::Commit;
 use crate::git::{GIT_ROOT, git};
 use crate::utils::normalize_commit_msg;
-use crate::{CONFIG_ROOT, note, success};
 
+/// Generate patch `filename` at the given `Commit`
 pub fn gen_patch(commit: Commit, filename: Option<PathBuf>) -> anyhow::Result<()> {
     let config_path = GIT_ROOT.join(CONFIG_ROOT.as_str());
 
     if !config_path.exists() {
-        note!(
+        log::info!(
             "Config directory {} does not exist, creating it...",
             config_path.to_string_lossy()
         );
@@ -55,7 +58,7 @@ pub fn gen_patch(commit: Commit, filename: Option<PathBuf>) -> anyhow::Result<()
         );
     }
 
-    success!(
+    log::info!(
         "Created patch file at {}",
         patch_file_path.to_string_lossy()
     );

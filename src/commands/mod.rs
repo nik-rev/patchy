@@ -1,3 +1,5 @@
+//! Commands for patchy
+
 pub mod branch_fetch;
 pub mod gen_patch;
 pub mod init;

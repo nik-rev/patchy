@@ -11,14 +11,15 @@ use tap::Pipe as _;
 use crate::{commands, commit::Commit};
 
 /// A tool which makes it easy to declaratively manage personal forks by automatically merging pull requests
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(version, styles = STYLES, long_about = None)]
 pub struct Cli {
+    /// Command to invoke
     #[command(subcommand)]
     pub command: Command,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 pub enum Command {
     /// Create example config file
     Init,
@@ -72,6 +73,7 @@ pub enum Command {
 }
 
 impl Command {
+    /// Execute the command
     pub async fn execute(self) -> anyhow::Result<()> {
         match self {
             Self::Init => commands::init()?,
@@ -132,6 +134,7 @@ pub struct Remote {
 }
 
 impl Remote {
+    /// Default branch for a remote
     const DEFAULT_BRANCH: &str = "main";
 }
 

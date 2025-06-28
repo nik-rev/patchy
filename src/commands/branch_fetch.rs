@@ -1,10 +1,12 @@
+//! `branch-fetch` subcommand
+
 use colored::Colorize as _;
 
 use crate::cli::Remote;
 use crate::commit::Commit;
 use crate::git::{fetch_branch, git};
-use crate::{fail, success};
 
+/// Fetch the given branch
 pub async fn branch_fetch(
     remote: Remote,
     commit: Option<Commit>,
@@ -12,7 +14,7 @@ pub async fn branch_fetch(
 ) -> anyhow::Result<()> {
     match fetch_branch(&remote, commit.as_ref()).await {
         Ok((_, info)) => {
-            success!(
+            log::info!(
                 "Fetched branch {}/{}/{} available at branch {}{}",
                 remote.owner,
                 remote.repo,
@@ -30,18 +32,18 @@ pub async fn branch_fetch(
 
             if checkout {
                 if let Err(cant_checkout) = git(["checkout", &info.branch.local_branch_name]) {
-                    fail!(
+                    log::error!(
                         "Could not check out branch
                 {}:\n{cant_checkout}",
                         info.branch.local_branch_name
                     );
                 } else {
-                    success!("checked out: {}", info.branch.local_branch_name);
+                    log::info!("checked out: {}", info.branch.local_branch_name);
                 }
             }
         }
         Err(err) => {
-            fail!("{err}");
+            log::error!("{err}");
         }
     }
 

@@ -1,3 +1,5 @@
+//! Git commit newtype
+
 use std::str::FromStr;
 
 use nutype::nutype;
@@ -18,7 +20,7 @@ pub fn is_valid_commit_hash(hash: &str) -> bool {
 impl FromStr for Commit {
     type Err = String;
 
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::try_new(s).map_err(|err| match err {
             CommitError::NotEmptyViolated => "commit cannot be empty".to_string(),
             CommitError::PredicateViolated => format!("invalid commit hash: {s}"),

@@ -1,11 +1,11 @@
+//! `pr-fetch` subcommand
+
 use anyhow::{Context as _, anyhow};
 use colored::Colorize as _;
 
 use crate::cli::Remote;
 use crate::commit::Commit;
 use crate::git::{fetch_pull_request, git};
-use crate::utils::display_link;
-use crate::{fail, success};
 
 /// Allow users to prefix their PRs with octothorpe, e.g. #12345 instead of
 /// 12345. This is just a QOL addition since some people may use it due to habit
@@ -18,6 +18,9 @@ pub fn ignore_octothorpe(arg: &str) -> String {
     .into()
 }
 
+/// Fetch the given `pr` of `remote` at `commit` and store it in local `branch`
+///
+/// If `checkout`, `--checkout` the `branch`
 pub async fn pr_fetch(
     pr: u32,
     remote: Option<Remote>,
@@ -62,9 +65,9 @@ pub async fn pr_fetch(
     .await
     {
         Ok((response, info)) => {
-            success!(
+            log::info!(
                 "Fetched pull request {} available at branch {}{}",
-                display_link(
+                crate::utils::display_link(
                     &format!(
                         "{}{}{}{}",
                         "#".bright_blue(),
@@ -88,12 +91,12 @@ pub async fn pr_fetch(
 
             if checkout {
                 if let Err(cant_checkout) = git(["checkout", &info.branch.local_branch_name]) {
-                    fail!(
+                    log::error!(
                         "Could not check out branch {}:\n{cant_checkout}",
                         info.branch.local_branch_name
                     );
                 } else {
-                    success!(
+                    log::info!(
                         "Automatically checked out the first branch: {}",
                         info.branch.local_branch_name
                     );
@@ -101,7 +104,7 @@ pub async fn pr_fetch(
             }
         }
         Err(err) => {
-            fail!("{err}");
+            log::error!("{err}");
         }
     }
 

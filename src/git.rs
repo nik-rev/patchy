@@ -14,10 +14,10 @@ use colored::Colorize as _;
 use reqwest::Client;
 
 use crate::commit::Commit;
-use crate::fail;
 use crate::types::{BranchAndRemote, GitHubResponse, Remote, Repo};
 use crate::utils::{display_link, make_request, normalize_commit_msg, with_uuid};
 
+/// Spawn a git process and collect its output
 pub fn spawn_git(args: &[&str], git_dir: &Path) -> Result<Output, io::Error> {
     process::Command::new("git")
         .args(args)
@@ -25,7 +25,8 @@ pub fn spawn_git(args: &[&str], git_dir: &Path) -> Result<Output, io::Error> {
         .output()
 }
 
-pub fn get_git_output(output: &Output, args: &[&str]) -> anyhow::Result<String> {
+/// Get output of the git process
+pub fn get_git_output(output: &Output, args: &[&str]) -> Result<String> {
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout)
             .trim_end()
@@ -40,7 +41,8 @@ pub fn get_git_output(output: &Output, args: &[&str]) -> anyhow::Result<String> 
     }
 }
 
-pub fn get_git_root() -> anyhow::Result<PathBuf> {
+/// Obtain the root directory of Git
+pub fn get_git_root() -> Result<PathBuf> {
     let current_dir = env::current_dir()?;
 
     let args = ["rev-parse", "--show-toplevel"];
@@ -50,28 +52,27 @@ pub fn get_git_root() -> anyhow::Result<PathBuf> {
     get_git_output(&root, &args).map(Into::into)
 }
 
-pub static GIT_ROOT: std::sync::LazyLock<PathBuf> =
-    std::sync::LazyLock::new(|| match get_git_root() {
-        Ok(root) => root,
-        Err(err) => {
-            fail!("Failed to determine Git root directory.\n{err}");
-            process::exit(1)
-        }
-    });
+/// Location of the root directory of Git
+pub static GIT_ROOT: LazyLock<PathBuf> = LazyLock::new(|| match get_git_root() {
+    Ok(root) => root,
+    Err(err) => {
+        log::error!("Failed to determine Git root directory.\n{err}");
+        process::exit(1)
+    }
+});
 
+/// Run `git` with the given arguments, and get its output
 pub fn git<const N: usize>(args: [&str; N]) -> Result<String> {
     log::trace!("$ git {}", args.join(" "));
     get_git_output(&spawn_git(&args, &GIT_ROOT)?, &args)
 }
 
-pub static CLIENT: LazyLock<Client> = LazyLock::new(|| *Box::new(reqwest::Client::new()));
+/// Client for network requests
+pub static CLIENT: LazyLock<Client> = LazyLock::new(|| *Box::new(Client::new()));
 
 /// Fetches a branch of a remote into local. Optionally accepts a commit hash
 /// for versioning.
-pub fn add_remote_branch(
-    info: &BranchAndRemote,
-    commit_hash: Option<&Commit>,
-) -> anyhow::Result<()> {
+pub fn add_remote_branch(info: &BranchAndRemote, commit_hash: Option<&Commit>) -> Result<()> {
     if let Err(err) = git([
         "remote",
         "add",
@@ -135,13 +136,14 @@ pub fn add_remote_branch(
 ///
 /// Only call this function only runs if the script created
 /// the branch or if the user gave explicit permission
-pub fn delete_remote_and_branch(remote: &str, branch: &str) -> anyhow::Result<()> {
+pub fn delete_remote_and_branch(remote: &str, branch: &str) -> Result<()> {
     git(["branch", "--delete", "--force", branch])?;
     git(["remote", "remove", remote])?;
     Ok(())
 }
 
-pub fn checkout_from_remote(branch: &str, remote: &str) -> anyhow::Result<String> {
+/// Checkout `branch` of `remote`
+pub fn checkout_from_remote(branch: &str, remote: &str) -> Result<String> {
     let current_branch = git(["rev-parse", "--abbrev-ref", "HEAD"]).map_err(|err| {
         if let Err(err) = delete_remote_and_branch(remote, branch) {
             err
@@ -162,10 +164,8 @@ pub fn checkout_from_remote(branch: &str, remote: &str) -> anyhow::Result<String
     Ok(current_branch)
 }
 
-pub fn merge_into_main(
-    local_branch: &str,
-    remote_branch: &str,
-) -> anyhow::Result<String, anyhow::Error> {
+/// Create a merge commit which merges the branch `remote_branch` into `local_branch`
+pub fn merge_into_main(local_branch: &str, remote_branch: &str) -> Result<String, anyhow::Error> {
     log::trace!("Merging branch {local_branch}");
 
     if let Err(err) = git(["merge", "--squash", local_branch]) {
@@ -184,12 +184,13 @@ pub fn merge_into_main(
     Ok(format!("Merged {remote_branch} successfully"))
 }
 
+/// Merge the `pull_request` into patchy's branch
 pub fn merge_pull_request(
     info: &BranchAndRemote,
     pull_request: &str,
     pr_title: &str,
     pr_url: &str,
-) -> anyhow::Result<()> {
+) -> Result<()> {
     merge_into_main(
         &info.branch.local_branch_name,
         &info.branch.upstream_branch_name,
@@ -243,6 +244,7 @@ pub fn merge_pull_request(
     Ok(())
 }
 
+/// Available branch name to use
 enum AvailableBranch {
     /// In this case, we can just use the original `branch` that we passed in
     First,
@@ -294,10 +296,11 @@ fn first_available_branch(branch: &str) -> AvailableBranch {
     AvailableBranch::Other(branch_name)
 }
 
+/// Fetch the branch of `remote` at the given `commit`
 pub async fn fetch_branch(
     remote: &crate::cli::Remote,
     commit: Option<&Commit>,
-) -> anyhow::Result<(Repo, BranchAndRemote)> {
+) -> Result<(Repo, BranchAndRemote)> {
     let url = format!(
         "https://api.github.com/repos/{}/{}",
         remote.owner, remote.repo
@@ -337,12 +340,14 @@ pub async fn fetch_branch(
     Ok((response, info))
 }
 
+/// Fetch PR `pull_request` at `commit_hash` from `repo` to a local `custom_branch_name`,
+/// the branch name is generated if not supplied
 pub async fn fetch_pull_request(
     repo: &str,
     pull_request: &str,
     custom_branch_name: Option<&str>,
     commit_hash: Option<&Commit>,
-) -> anyhow::Result<(GitHubResponse, BranchAndRemote)> {
+) -> Result<(GitHubResponse, BranchAndRemote)> {
     let url = format!("https://api.github.com/repos/{repo}/pulls/{pull_request}");
 
     let response = make_request(&url)

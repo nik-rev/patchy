@@ -1,3 +1,9 @@
+//! GitHub API
+#![allow(
+    clippy::missing_docs_in_private_items,
+    reason = "GitHub API is self-explanatory"
+)]
+
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 

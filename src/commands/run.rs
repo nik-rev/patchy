@@ -1,3 +1,5 @@
+//! `run` subcommand
+
 use std::fs::{self, File};
 use std::io::Write as _;
 use std::path::PathBuf;
@@ -8,10 +10,9 @@ use colored::Colorize as _;
 use crate::commands::pr_fetch::ignore_octothorpe;
 use crate::commit::Commit;
 use crate::git::{self, GIT_ROOT, git};
-use crate::note;
 use crate::types::{Branch, BranchAndRemote, Configuration, Remote};
 use crate::utils::{display_link, with_uuid};
-use crate::{APP_NAME, CONFIG_FILE, CONFIG_ROOT, commands, confirm_prompt, fail, success};
+use crate::{CONFIG_FILE, CONFIG_ROOT, commands, confirm_prompt};
 
 /// Parses user inputs of the form `<head><syntax><commit-hash>`
 ///
@@ -33,22 +34,22 @@ pub fn parse_if_maybe_hash(input: &str, syntax: &str) -> (String, Option<Commit>
     }
 }
 
+/// Run patchy, if `yes` then there will be no prompt
 pub async fn run(yes: bool) -> anyhow::Result<()> {
-    println!();
     let root = CONFIG_ROOT.as_str();
     let config_path = GIT_ROOT.join(root);
 
     let config_file_path = config_path.join(CONFIG_FILE);
 
     let Ok(config_raw) = fs::read_to_string(config_file_path.clone()) else {
-        fail!("Could not find configuration file at {root}/{CONFIG_FILE}",);
+        log::error!("Could not find configuration file at {root}/{CONFIG_FILE}",);
 
         // We don't want to have *any* sort of prompt when using the -y flag since that
         // would be problematic in scripts
         if !yes && confirm_prompt!("Would you like us to run `patchy init` to initialize it?",) {
             commands::init()?;
         } else if yes {
-            note!("You can create it with `patchy init`",);
+            log::info!("You can create it with `patchy init`",);
         } else {
             // user said "no" in the prompt, so we don't do any initializing
         }
@@ -59,7 +60,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         return Ok(());
     };
 
-    log::trace!("Using configuration file {config_file_path:?}");
+    log::trace!("Using configuration file {}", config_file_path.display());
 
     let config = toml::from_str::<Configuration>(&config_raw).map_err(|err| {
         anyhow!("Could not parse `{root}/{CONFIG_FILE}` configuration file:\n{err}",)
@@ -134,7 +135,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
     let has_branches = !config.branches.is_empty();
 
     if !has_pull_requests && !has_branches {
-        log::info!(
+        log::warn!(
             "You haven't specified any pull requests or branches to fetch in your config, {}",
             display_link(
                 "see the instructions on how to configure patchy.",
@@ -167,7 +168,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
                             &response.html_url,
                         ) {
                             Ok(()) => {
-                                success!(
+                                log::info!(
                                     "Merged pull request {}",
                                     display_link(
                                         &format!(
@@ -182,12 +183,12 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
                                 );
                             }
                             Err(err) => {
-                                fail!("{err}");
+                                log::error!("{err}");
                             }
                         }
                     }
                     Err(err) => {
-                        fail!("Could not fetch branch from remote\n{err}");
+                        log::error!("Could not fetch branch from remote\n{err}");
                     }
                 }
             }
@@ -201,9 +202,8 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
                 // Parse the branch path into owner/repo/branch format
                 let parts: Vec<&str> = branch_path.split('/').collect();
                 if parts.len() < 3 {
-                    fail!(
-                        "Invalid branch format: {}. Expected format: owner/repo/branch",
-                        branch_path
+                    log::error!(
+                        "Invalid branch format: {branch_path}. Expected format: owner/repo/branch"
                     );
                     continue;
                 }
@@ -225,7 +225,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
                             &info.branch.upstream_branch_name,
                         ) {
                             Ok(_) => {
-                                success!(
+                                log::info!(
                                     "Merged branch {}/{}/{} {}",
                                     owner.bright_blue(),
                                     repo.bright_blue(),
@@ -243,21 +243,16 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
                                     &info.remote.local_remote_alias,
                                     &info.branch.local_branch_name,
                                 ) {
-                                    fail!("Failed to clean up branch: {err}");
+                                    log::warn!("Failed to clean up branch: {err}");
                                 }
                             }
                             Err(err) => {
-                                fail!("{err}");
+                                log::error!("{err}");
                             }
                         }
                     }
                     Err(err) => {
-                        fail!(
-                            "Could not fetch branch {}/{}/{}: {err}",
-                            owner,
-                            repo,
-                            branch_name
-                        );
+                        log::error!("Could not fetch branch {owner}/{repo}/{branch_name}: {err}");
                     }
                 }
             }
@@ -289,7 +284,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
             .join(CONFIG_ROOT.as_str())
             .join(format!("{patch}.patch"));
         if !file_name.exists() {
-            fail!("Could not find patch {patch}, skipping");
+            log::warn!("Could not find patch {patch}, skipping");
             continue;
         }
 
@@ -299,7 +294,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         }
 
         let last_commit_message = git(["log", "-1", "--format=%B"])?;
-        success!(
+        log::info!(
             "Applied patch {patch} {}",
             last_commit_message
                 .lines()
@@ -311,11 +306,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
     }
 
     git(["add", CONFIG_ROOT.as_str()])?;
-    git([
-        "commit",
-        "--message",
-        &format!("{APP_NAME}: Restore configuration files"),
-    ])?;
+    git(["commit", "--message", "patchy: Restore configuration files"])?;
 
     let temporary_branch = with_uuid("temp-branch");
 
@@ -343,19 +334,19 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
             &config.local_branch,
         ])?;
         if yes {
-            note!(
+            log::info!(
                 "Automatically overwrote branch {} since you supplied the {} flag",
                 config.local_branch.cyan(),
                 "--yes".bright_magenta()
             );
         }
-        success!("Success!");
+        log::info!("Success!");
     } else {
         let overwrite_command = format!(
             "git branch --move --force {temporary_branch} {}",
             config.local_branch
         );
-        note!(
+        log::info!(
             "You can still manually overwrite {} with:\n  {overwrite_command}\n",
             config.local_branch.cyan(),
         );

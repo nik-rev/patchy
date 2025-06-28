@@ -1,4 +1,5 @@
-#![cfg(any())]
+//! Tests for patchy
+#![cfg(false)]
 #![cfg(test)]
 use std::process::Command;
 

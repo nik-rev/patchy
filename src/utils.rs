@@ -1,3 +1,5 @@
+//! Utilities for patchy
+
 use anyhow::anyhow;
 use rand::{Rng as _, distributions};
 use reqwest::header::USER_AGENT;

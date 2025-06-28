@@ -1,3 +1,5 @@
+//! `init` subcommand
+
 use std::fs::{self, File};
 use std::io::Write as _;
 
@@ -5,8 +7,9 @@ use anyhow::bail;
 use colored::Colorize as _;
 
 use crate::git::GIT_ROOT;
-use crate::{CONFIG_FILE, CONFIG_ROOT, confirm_prompt, success};
+use crate::{CONFIG_FILE, CONFIG_ROOT, confirm_prompt};
 
+/// Initialize the Patchy config file
 pub fn init() -> anyhow::Result<()> {
     let example_config = include_bytes!("../../example-config.toml");
 
@@ -29,7 +32,7 @@ pub fn init() -> anyhow::Result<()> {
 
     file.write_all(example_config)?;
 
-    success!("Created config file {}", config_file_path.display());
+    log::info!("Created config file {}", config_file_path.display());
 
     Ok(())
 }
