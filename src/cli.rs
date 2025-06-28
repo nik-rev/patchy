@@ -9,7 +9,7 @@ use clap::{
 
 use crate::{
     commands,
-    config::{BranchName, Commit, Remote},
+    config::{BranchName, Commit, PrNumber, Remote},
 };
 
 /// A tool which makes it easy to declaratively manage personal forks by automatically merging pull requests
@@ -45,7 +45,7 @@ pub enum Command {
     /// Fetch pull request for a GitHub repository as a local branch
     PrFetch {
         /// Fetch PR of this number
-        pr: u32,
+        pr: PrNumber,
         /// The remote branch in the format `repo-owner/repo/branch`
         ///
         /// The final part (`/branch`) is optional and defaults to `main`

@@ -3,14 +3,14 @@
 use anyhow::{Context as _, anyhow};
 use colored::Colorize as _;
 
-use crate::config::{BranchName, Commit, Remote};
+use crate::config::{BranchName, Commit, PrNumber, Remote};
 use crate::git::{fetch_pull_request, git};
 
 /// Fetch the given `pr` of `remote` at `commit` and store it in local `branch`
 ///
 /// If `checkout`, `--checkout` the `branch`
 pub async fn pr_fetch(
-    pr: u32,
+    pr: PrNumber,
     remote: Option<Remote>,
     branch: Option<BranchName>,
     commit: Option<Commit>,

@@ -4,7 +4,7 @@
 //! - Extract into a separate module, put it behind some more nice API
 //! - Use `gix`? Or anyways, we could go without spawning an entire process each
 //!   time we want to interact with Git
-use crate::config::{BranchName, Commit};
+use crate::config::{BranchName, Commit, PrNumber};
 use std::path::{Path, PathBuf};
 use std::process::{self, Output};
 use std::sync::LazyLock;
@@ -190,7 +190,7 @@ pub fn merge_into_main(
 /// Merge the `pull_request` into patchy's branch
 pub fn merge_pull_request(
     info: &RemoteBranch,
-    pull_request: u32,
+    pull_request: PrNumber,
     pr_title: &str,
     pr_url: &str,
 ) -> Result<()> {
@@ -345,7 +345,7 @@ pub async fn fetch_branch(remote: &crate::config::Remote) -> Result<(Repo, Remot
 /// the branch name is generated if not supplied
 pub async fn fetch_pull_request(
     repo: &str,
-    pull_request: u32,
+    pull_request: PrNumber,
     custom_branch_name: Option<BranchName>,
     commit_hash: Option<&Commit>,
 ) -> Result<(GitHubResponse, RemoteBranch)> {

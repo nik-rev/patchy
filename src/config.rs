@@ -3,7 +3,7 @@
 use anyhow::{anyhow, bail};
 use itertools::Itertools;
 use nutype::nutype;
-use std::{convert::Infallible, str::FromStr};
+use std::{convert::Infallible, num::NonZeroU32, str::FromStr};
 use tap::Pipe as _;
 
 use indexmap::IndexSet;
@@ -99,7 +99,7 @@ impl FromStr for Remote {
 #[derive(Debug, Eq, PartialEq)]
 pub struct PullRequest {
     /// Number of the pull request
-    pub number: u32,
+    pub number: PrNumber,
     /// Commit to checkout of the pull request. If none, uses the latest commit
     pub commit: Option<Commit>,
 }
@@ -113,16 +113,13 @@ impl FromStr for PullRequest {
             commit,
         }) = s.parse::<Ref>();
 
-        let pr_number = pr_number
+        let number = pr_number
             .strip_prefix('#')
             .unwrap_or(&pr_number)
-            .parse::<u32>()
+            .parse()
             .map_err(|err| anyhow!("invalid PR number: {pr_number}: {err}"))?;
 
-        Ok(Self {
-            number: pr_number,
-            commit,
-        })
+        Ok(Self { number, commit })
     }
 }
 
@@ -186,6 +183,10 @@ impl FromStr for Ref {
         .pipe(Ok)
     }
 }
+
+/// Number of a pull request
+#[nutype(const_fn, derive(Eq, PartialEq, Display, Debug, FromStr, Copy, Clone))]
+pub struct PrNumber(NonZeroU32);
 
 /// Name of a branch in git
 #[nutype(
@@ -327,6 +328,12 @@ patches = ['remove-tab']"#;
 
         let conf = toml::from_str::<Config>(config).unwrap();
 
+        macro_rules! pr_number {
+            ($num:literal) => {
+                PrNumber::new(const { ::std::num::NonZeroU32::new($num).expect("nonzero") })
+            };
+        }
+
         pretty_assertions::assert_eq!(
             conf,
             Config {
@@ -334,19 +341,19 @@ patches = ['remove-tab']"#;
                 patches: indexset!["remove-tab".to_string()],
                 pull_requests: vec![
                     PullRequest {
-                        number: 10000,
+                        number: pr_number!(10000),
                         commit: None
                     },
                     PullRequest {
-                        number: 10000,
+                        number: pr_number!(10000),
                         commit: None
                     },
                     PullRequest {
-                        number: 454,
+                        number: pr_number!(454),
                         commit: Some(Commit::try_new("a1b2c3").unwrap())
                     },
                     PullRequest {
-                        number: 1,
+                        number: pr_number!(1),
                         commit: Some(Commit::try_new("a1b2c3").unwrap())
                     },
                 ],
