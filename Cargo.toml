@@ -43,7 +43,7 @@ once_cell = "1.17"
 documented = "0.9"
 log = "0.4"
 env_logger = "0.11"
-nutype = "0.6"
+nutype = { version = "0.6", features = ["serde"] }
 clap = { version = "4.5.39", features = [
   "derive",
   "wrap_help",

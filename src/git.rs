@@ -4,7 +4,7 @@
 //! - Extract into a separate module, put it behind some more nice API
 //! - Use `gix`? Or anyways, we could go without spawning an entire process each
 //!   time we want to interact with Git
-use crate::config::Commit;
+use crate::config::{BranchName, Commit};
 use std::path::{Path, PathBuf};
 use std::process::{self, Output};
 use std::sync::LazyLock;
@@ -115,7 +115,7 @@ pub fn add_remote_branch(remote_branch: &RemoteBranch, commit: Option<&Commit>) 
         git([
             "branch",
             "--force",
-            &remote_branch.branch.local_branch_name,
+            remote_branch.branch.local_branch_name.as_ref(),
             commit.as_ref(),
         ])
         .map_err(|err| {
@@ -136,14 +136,14 @@ pub fn add_remote_branch(remote_branch: &RemoteBranch, commit: Option<&Commit>) 
 ///
 /// Only call this function only runs if the script created
 /// the branch or if the user gave explicit permission
-pub fn delete_remote_and_branch(remote: &str, branch: &str) -> Result<()> {
-    git(["branch", "--delete", "--force", branch])?;
+pub fn delete_remote_and_branch(remote: &str, branch: &BranchName) -> Result<()> {
+    git(["branch", "--delete", "--force", branch.as_ref()])?;
     git(["remote", "remove", remote])?;
     Ok(())
 }
 
 /// Checkout `branch` of `remote`
-pub fn checkout_from_remote(branch: &str, remote: &str) -> Result<String> {
+pub fn checkout_from_remote(branch: &BranchName, remote: &str) -> Result<String> {
     let current_branch = git(["rev-parse", "--abbrev-ref", "HEAD"]).map_err(|err| {
         if let Err(err) = delete_remote_and_branch(remote, branch) {
             err
@@ -156,7 +156,7 @@ pub fn checkout_from_remote(branch: &str, remote: &str) -> Result<String> {
         }
     })?;
 
-    if let Err(err) = git(["checkout", branch]) {
+    if let Err(err) = git(["checkout", branch.as_ref()]) {
         delete_remote_and_branch(remote, branch)?;
         bail!("Failed to checkout branch: {branch}, which belongs to remote {remote}\n{err}");
     }
@@ -165,10 +165,13 @@ pub fn checkout_from_remote(branch: &str, remote: &str) -> Result<String> {
 }
 
 /// Create a merge commit which merges the branch `remote_branch` into `local_branch`
-pub fn merge_into_main(local_branch: &str, remote_branch: &str) -> Result<String, anyhow::Error> {
+pub fn merge_into_main(
+    local_branch: &BranchName,
+    remote_branch: &BranchName,
+) -> Result<String, anyhow::Error> {
     log::trace!("Merging branch {local_branch}");
 
-    if let Err(err) = git(["merge", "--squash", local_branch]) {
+    if let Err(err) = git(["merge", "--squash", local_branch.as_ref()]) {
         // nukes the worktree
         git(["reset", "--hard"])?;
         bail!("Could not merge {remote_branch}\n{err}");
@@ -187,7 +190,7 @@ pub fn merge_into_main(local_branch: &str, remote_branch: &str) -> Result<String
 /// Merge the `pull_request` into patchy's branch
 pub fn merge_pull_request(
     info: &RemoteBranch,
-    pull_request: &str,
+    pull_request: u32,
     pr_title: &str,
     pr_url: &str,
 ) -> Result<()> {
@@ -200,7 +203,7 @@ pub fn merge_pull_request(
             &format!(
                 "{}{}{}{}",
                 "#".bright_blue(),
-                pull_request.bright_blue(),
+                pull_request.to_string().bright_blue(),
                 " ".bright_blue(),
                 pr_title.bright_blue().italic()
             ),
@@ -218,7 +221,7 @@ pub fn merge_pull_request(
              merge is non-trivial.\nYou will need to merge it yourself:\n  {} {0}\nNote: To learn \
              how to merge only once and re-use for subsequent invocations of patchy, see \
              {support_url}\nSkipping this PR. Error message from git:\n{err}",
-            &info.branch.local_branch_name.bright_cyan(),
+            &info.branch.local_branch_name.as_ref().bright_cyan(),
             "git merge --squash".bright_blue()
         )
     })?;
@@ -251,7 +254,7 @@ enum AvailableBranch {
     /// The first branch was available, so we slapped on some arbitrary
     /// identifier at the end Represents a branch like some-branch-2,
     /// some-branch-3
-    Other(String),
+    Other(BranchName),
 }
 
 /// Given a branch, either return this branch or the first available branch with
@@ -291,7 +294,8 @@ fn find_first_available_branch(branch: &str) -> AvailableBranch {
         })
         .expect("There will eventually be a #-branch which is available.");
 
-    let branch_name = format!("{number}-{branch}");
+    let branch_name = BranchName::try_new(format!("{number}-{branch}"))
+        .expect("existing git branch is a valid branch name");
 
     AvailableBranch::Other(branch_name)
 }
@@ -341,8 +345,8 @@ pub async fn fetch_branch(remote: &crate::config::Remote) -> Result<(Repo, Remot
 /// the branch name is generated if not supplied
 pub async fn fetch_pull_request(
     repo: &str,
-    pull_request: &str,
-    custom_branch_name: Option<&str>,
+    pull_request: u32,
+    custom_branch_name: Option<BranchName>,
     commit_hash: Option<&Commit>,
 ) -> Result<(GitHubResponse, RemoteBranch)> {
     let url = format!("https://api.github.com/repos/{repo}/pulls/{pull_request}");
@@ -371,7 +375,8 @@ pub async fn fetch_pull_request(
                     let branch_name = &format!("{pull_request}/{}", &response.head.r#ref);
 
                     match find_first_available_branch(branch_name) {
-                        AvailableBranch::First => branch_name.to_string(),
+                        AvailableBranch::First => BranchName::try_new(branch_name)
+                            .expect("name of the branch we create is valid"),
                         AvailableBranch::Other(branch) => branch,
                     }
                 },

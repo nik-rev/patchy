@@ -6,6 +6,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::config::BranchName;
+
 /// Data returned by GitHub's API
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GitHubResponse {
@@ -17,7 +19,7 @@ pub struct GitHubResponse {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Head {
     pub repo: Repo,
-    pub r#ref: String,
+    pub r#ref: BranchName,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -27,8 +29,8 @@ pub struct Repo {
 
 #[derive(Debug)]
 pub struct Branch {
-    pub upstream_branch_name: String,
-    pub local_branch_name: String,
+    pub upstream_branch_name: BranchName,
+    pub local_branch_name: BranchName,
 }
 
 #[derive(Debug)]

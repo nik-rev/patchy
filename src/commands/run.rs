@@ -1,6 +1,6 @@
 //! `run` subcommand
 
-use crate::config::{Config, Ref};
+use crate::config::{BranchName, Config, PullRequest};
 use std::ffi::OsString;
 use std::fs::{self, File};
 use std::io::Write as _;
@@ -51,8 +51,8 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         anyhow!("Could not parse `{root}/{CONFIG_FILE}` configuration file:\n{err}",)
     })?;
 
-    let Ref {
-        item: remote_branch,
+    let crate::config::Branch {
+        name: remote_branch,
         commit,
     } = config.remote_branch;
 
@@ -103,7 +103,8 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         },
         branch: Branch {
             upstream_branch_name: remote_branch.clone(),
-            local_branch_name: with_uuid(&remote_branch),
+            local_branch_name: BranchName::try_new(with_uuid(remote_branch.as_ref()))
+                .expect("adding UUID to branch name does not invalidate it"),
         },
     };
 
@@ -128,14 +129,14 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
     // TODO: make this concurrent, see https://users.rust-lang.org/t/processing-subprocesses-concurrently/79638/3
     // Git cannot handle multiple threads executing commands in the same repository,
     // so we can't use threads, but we can run processes in the background
-    for Ref {
-        item: pull_request,
+    for PullRequest {
+        number: pull_request,
         commit,
     } in &config.pull_requests
     {
         // TODO: refactor this to not use such deep nesting
         let Ok((response, info)) =
-            git::fetch_pull_request(&config.repo, pull_request, None, commit.as_ref())
+            git::fetch_pull_request(&config.repo, *pull_request, None, commit.as_ref())
                 .await
                 .inspect_err(|err| {
                     log::error!("failed to fetch branch from remote:\n{err}");
@@ -145,7 +146,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         };
 
         if let Err(err) =
-            git::merge_pull_request(&info, pull_request, &response.title, &response.html_url)
+            git::merge_pull_request(&info, *pull_request, &response.title, &response.html_url)
         {
             log::error!("failed to merge {pull_request}: {err}");
             continue;
@@ -157,7 +158,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
                 &format!(
                     "{}{}{}{}",
                     "#".bright_blue(),
-                    pull_request.bright_blue(),
+                    pull_request.to_string().bright_blue(),
                     " ".bright_blue(),
                     &response.title.bright_blue().italic()
                 ),
@@ -188,7 +189,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
             "Merged branch {}/{}/{} {}",
             owner.bright_blue(),
             repo.bright_blue(),
-            branch.bright_blue(),
+            branch.as_ref().bright_blue(),
             remote
                 .commit
                 .as_ref()
@@ -274,7 +275,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
     if yes
         || confirm_prompt!(
             "Overwrite branch {}? This is irreversible.",
-            config.local_branch.cyan()
+            config.local_branch.as_ref().cyan()
         )
     {
         // forcefully renames the branch we are currently on into the branch specified
@@ -285,12 +286,12 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
             "--move",
             "--force",
             &temporary_branch,
-            &config.local_branch,
+            config.local_branch.as_ref(),
         ])?;
         if yes {
             log::info!(
                 "Automatically overwrote branch {} since you supplied the {} flag",
-                config.local_branch.cyan(),
+                config.local_branch.as_ref().cyan(),
                 "--yes".bright_magenta()
             );
         }
@@ -304,7 +305,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
     );
     log::info!(
         "You can still manually overwrite {} with:\n  {overwrite_command}\n",
-        config.local_branch.cyan(),
+        config.local_branch.as_ref().cyan(),
     );
 
     Ok(())

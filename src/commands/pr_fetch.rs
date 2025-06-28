@@ -3,7 +3,7 @@
 use anyhow::{Context as _, anyhow};
 use colored::Colorize as _;
 
-use crate::config::{Commit, Remote};
+use crate::config::{BranchName, Commit, Remote};
 use crate::git::{fetch_pull_request, git};
 
 /// Fetch the given `pr` of `remote` at `commit` and store it in local `branch`
@@ -12,7 +12,7 @@ use crate::git::{fetch_pull_request, git};
 pub async fn pr_fetch(
     pr: u32,
     remote: Option<Remote>,
-    branch: Option<String>,
+    branch: Option<BranchName>,
     commit: Option<Commit>,
     checkout: bool,
 ) -> anyhow::Result<()> {
@@ -35,7 +35,7 @@ pub async fn pr_fetch(
                 Ok(Remote {
                     owner: owner.to_string(),
                     repo: repo.to_string(),
-                    branch: "main".to_string(),
+                    branch: BranchName::try_new("main").expect("`main` is a valid branch name"),
                     commit: None,
                 })
             } else {
@@ -48,8 +48,8 @@ pub async fn pr_fetch(
     match fetch_pull_request(
         &format!("{}/{}", remote.owner, remote.repo),
         // TODO: make fetch_pull_request accept a u32 instead
-        &pr.to_string(),
-        branch.as_deref(),
+        pr,
+        branch,
         commit.as_ref(),
     )
     .await
@@ -67,7 +67,7 @@ pub async fn pr_fetch(
                     ),
                     &response.html_url
                 ),
-                info.branch.local_branch_name.bright_cyan(),
+                info.branch.local_branch_name.as_ref().bright_cyan(),
                 commit
                     .clone()
                     .map(|commit_hash| {
@@ -80,7 +80,9 @@ pub async fn pr_fetch(
             let _ = git(["remote", "remove", &info.remote.local_remote_alias]);
 
             if checkout {
-                if let Err(cant_checkout) = git(["checkout", &info.branch.local_branch_name]) {
+                if let Err(cant_checkout) =
+                    git(["checkout", info.branch.local_branch_name.as_ref()])
+                {
                     log::error!(
                         "Could not check out branch {}:\n{cant_checkout}",
                         info.branch.local_branch_name

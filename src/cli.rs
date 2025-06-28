@@ -7,7 +7,10 @@ use clap::{
     builder::styling::{AnsiColor, Effects},
 };
 
-use crate::{commands, config::Commit, config::Remote};
+use crate::{
+    commands,
+    config::{BranchName, Commit, Remote},
+};
 
 /// A tool which makes it easy to declaratively manage personal forks by automatically merging pull requests
 #[derive(Parser, Debug)]
@@ -51,7 +54,7 @@ pub enum Command {
         remote: Option<Remote>,
         /// Choose a custom branch name for the fetched repo
         #[arg(short, long)]
-        branch: Option<String>,
+        branch: Option<BranchName>,
         /// When fetching this PR, reset to this commit
         #[arg(short = 'C', long)]
         commit: Option<Commit>,
@@ -144,7 +147,7 @@ mod test {
             Remote {
                 owner: "helix-editor".to_string(),
                 repo: "helix".to_string(),
-                branch: "main".to_string(),
+                branch: BranchName::try_new("main").unwrap(),
                 commit: None
             }
         );
@@ -155,7 +158,7 @@ mod test {
             Remote {
                 owner: "helix-editor".to_string(),
                 repo: "helix".to_string(),
-                branch: "master".to_string(),
+                branch: BranchName::try_new("master").unwrap(),
                 commit: Some(Commit::try_new("1a2b3c").unwrap())
             }
         );

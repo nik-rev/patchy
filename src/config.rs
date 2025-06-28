@@ -1,9 +1,9 @@
 //! Patchy's config
 
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 use itertools::Itertools;
 use nutype::nutype;
-use std::str::FromStr;
+use std::{convert::Infallible, str::FromStr};
 use tap::Pipe as _;
 
 use indexmap::IndexSet;
@@ -14,18 +14,18 @@ use serde::Deserialize;
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
     /// Local branch where patchy will do all of its work
-    pub local_branch: String,
+    pub local_branch: BranchName,
     /// List of patches to apply
     #[serde(default)]
     pub patches: IndexSet<String>,
     /// List of pull request to apply
     #[serde(default)]
-    pub pull_requests: Vec<Ref>,
+    pub pull_requests: Vec<PullRequest>,
     /// List of branches to apply
     #[serde(default)]
     pub branches: Vec<Remote>,
     /// Branch of the remote repository
-    pub remote_branch: Ref,
+    pub remote_branch: Branch,
     /// Remote repository where all of the `branches` and `pull_requests` are
     pub repo: String,
 }
@@ -38,7 +38,7 @@ pub struct Remote {
     /// e.g. `helix`
     pub repo: String,
     /// e.g. `master`
-    pub branch: String,
+    pub branch: BranchName,
     /// e.g. `1a2b3c`
     pub commit: Option<Commit>,
 }
@@ -59,7 +59,7 @@ impl FromStr for Remote {
     ///              ^^^^^ repo     ^^^^^^ commit
     /// ```
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let Ref { item, commit } = Ref::new(s);
+        let Ok(Ref { item, commit }) = s.parse::<Ref>();
 
         let mut parts = item.split('/');
         let Some([owner, repo]) = parts.next_array() else {
@@ -69,6 +69,9 @@ impl FromStr for Remote {
         let branch = parts
             // insert back the removed '/', this could be part of the branch itself
             // e.g. in `helix-editor/helix/master/main` the branch is considered to be `master/main`
+            //
+            // NOTE: Using fully qualified syntax, as Rust will add `Iterator::intersperse`
+            // in a future version.
             .pipe(|it| Itertools::intersperse(it, "/"))
             .collect::<String>()
             .pipe(|s| {
@@ -79,7 +82,9 @@ impl FromStr for Remote {
                 } else {
                     s
                 }
-            });
+            })
+            .pipe(BranchName::try_new)
+            .map_err(|err| anyhow!("invalid branch name: {err}"))?;
 
         Ok(Self {
             owner: owner.to_string(),
@@ -90,18 +95,64 @@ impl FromStr for Remote {
     }
 }
 
-impl<'de> Deserialize<'de> for Remote {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        String::deserialize(deserializer)?
-            .parse::<Remote>()
-            .map_err(serde::de::Error::custom)
+/// Represents a pull request of a repository. E.g. `10000`, or `10000 @ deadbeef`
+#[derive(Debug, Eq, PartialEq)]
+pub struct PullRequest {
+    /// Number of the pull request
+    pub number: u32,
+    /// Commit to checkout of the pull request. If none, uses the latest commit
+    pub commit: Option<Commit>,
+}
+
+impl FromStr for PullRequest {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let Ok(Ref {
+            item: pr_number,
+            commit,
+        }) = s.parse::<Ref>();
+
+        let pr_number = pr_number
+            .strip_prefix('#')
+            .unwrap_or(&pr_number)
+            .parse::<u32>()
+            .map_err(|err| anyhow!("invalid PR number: {pr_number}: {err}"))?;
+
+        Ok(Self {
+            number: pr_number,
+            commit,
+        })
     }
 }
 
-/// Represents any git item which may be associated with a commit
+/// Represents a branch in git
+#[derive(Eq, PartialEq, Debug)]
+pub struct Branch {
+    /// Name of the branch
+    pub name: BranchName,
+    /// Commit to checkout when fetching this branch
+    pub commit: Option<Commit>,
+}
+
+impl FromStr for Branch {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let Ok(Ref {
+            item: branch_name,
+            commit,
+        }) = s.parse::<Ref>();
+
+        Ok(Self {
+            name: BranchName::try_new(branch_name)?,
+            commit,
+        })
+    }
+}
+
+/// Represents any git item which may be associated with a commit, `<item> @ <commit>`
+/// e.g. `helix-editor/helix/master @ deadbeef`
 #[derive(Debug, Eq, PartialEq)]
 pub struct Ref {
     /// Git item. E.g. branch, or remote which may associate with the `commit`
@@ -110,10 +161,12 @@ pub struct Ref {
     pub commit: Option<Commit>,
 }
 
-impl Ref {
+impl FromStr for Ref {
+    type Err = Infallible;
+
     /// Parses user inputs of the form `<head> @ <commit-hash>`
-    pub fn new(input: &str) -> Self {
-        let parts: Vec<_> = input.split(" @ ").collect();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<_> = s.split(" @ ").collect();
 
         let len = parts.len();
 
@@ -121,7 +174,7 @@ impl Ref {
             // The string does not contain the <syntax>, so the user chose to use the latest
             // commit rather than a specific one
             Self {
-                item: input.into(),
+                item: s.into(),
                 commit: None,
             }
         } else {
@@ -130,19 +183,30 @@ impl Ref {
             let commit = (parts[len - 1].to_owned()).parse::<Commit>().ok();
             Self { item: head, commit }
         }
+        .pipe(Ok)
     }
 }
 
-impl<'de> Deserialize<'de> for Ref {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        Ok(Ref::new(&String::deserialize(deserializer)?))
+/// Name of a branch in git
+#[nutype(
+    validate(not_empty),
+    derive(
+        Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef, Display, Serialize
+    )
+)]
+pub struct BranchName(String);
+
+impl FromStr for BranchName {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_new(s).map_err(|err| match err {
+            BranchNameError::NotEmptyViolated => "branch name cannot be empty".to_string(),
+        })
     }
 }
 
-/// Represents a git commit
+/// Represents a git commit hash
 #[nutype(
     validate(not_empty, predicate = is_valid_commit_hash),
     derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef)
@@ -166,6 +230,27 @@ impl FromStr for Commit {
     }
 }
 
+/// Implement `Deserialize` for these types, given that they have a `FromStr` impl
+// This is not a blanket impl as that would violate the orphan rule
+macro_rules! impl_deserialize_for {
+    ($($ty:ty)*) => {
+        $(
+            impl<'de> serde::Deserialize<'de> for $ty {
+                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                where
+                    D: serde::Deserializer<'de>,
+                {
+                    String::deserialize(deserializer)?
+                        .parse::<Self>()
+                        .map_err(serde::de::Error::custom)
+                }
+            }
+        )*
+    };
+}
+
+impl_deserialize_for!(Remote Ref PullRequest Branch BranchName);
+
 #[cfg(test)]
 mod tests {
     use indexmap::indexset;
@@ -180,7 +265,7 @@ mod tests {
                 Remote {
                     owner: "helix-editor".to_string(),
                     repo: "helix".to_string(),
-                    branch: "master".to_string(),
+                    branch: BranchName::try_new("master").unwrap(),
                     commit: Some(Commit::try_new("1a2b3c".to_string()).unwrap()),
                 },
             ),
@@ -189,7 +274,7 @@ mod tests {
                 Remote {
                     owner: "helix-editor".to_string(),
                     repo: "helix".to_string(),
-                    branch: Remote::DEFAULT_BRANCH.to_string(),
+                    branch: BranchName::try_new(Remote::DEFAULT_BRANCH).unwrap(),
                     commit: Some(Commit::try_new("deadbeef".to_string()).unwrap()),
                 },
             ),
@@ -198,7 +283,7 @@ mod tests {
                 Remote {
                     owner: "helix-editor".to_string(),
                     repo: "helix".to_string(),
-                    branch: "feat/feature-x".to_string(),
+                    branch: BranchName::try_new("feat/feature-x").unwrap(),
                     commit: Some(Commit::try_new("abc123".to_string()).unwrap()),
                 },
             ),
@@ -207,7 +292,7 @@ mod tests {
                 Remote {
                     owner: "owner".to_string(),
                     repo: "repo".to_string(),
-                    branch: "branch".to_string(),
+                    branch: BranchName::try_new("branch").unwrap(),
                     commit: None,
                 },
             ),
@@ -216,7 +301,7 @@ mod tests {
                 Remote {
                     owner: "owner".to_string(),
                     repo: "repo".to_string(),
-                    branch: Remote::DEFAULT_BRANCH.to_string(),
+                    branch: BranchName::try_new(Remote::DEFAULT_BRANCH).unwrap(),
                     commit: None,
                 },
             ),
@@ -245,29 +330,29 @@ patches = ['remove-tab']"#;
         pretty_assertions::assert_eq!(
             conf,
             Config {
-                local_branch: "patchy".to_string(),
+                local_branch: BranchName::try_new("patchy".to_string()).unwrap(),
                 patches: indexset!["remove-tab".to_string()],
                 pull_requests: vec![
-                    Ref {
-                        item: "10000".to_string(),
+                    PullRequest {
+                        number: 10000,
                         commit: None
                     },
-                    Ref {
-                        item: "10000".to_string(),
+                    PullRequest {
+                        number: 10000,
                         commit: None
                     },
-                    Ref {
-                        item: "454".to_string(),
+                    PullRequest {
+                        number: 454,
                         commit: Some(Commit::try_new("a1b2c3").unwrap())
                     },
-                    Ref {
-                        item: "1".to_string(),
+                    PullRequest {
+                        number: 1,
                         commit: Some(Commit::try_new("a1b2c3").unwrap())
                     },
                 ],
                 branches: vec![],
-                remote_branch: Ref {
-                    item: "master".to_string(),
+                remote_branch: Branch {
+                    name: BranchName::try_new("master").unwrap(),
                     commit: Some(Commit::try_new("a1b2c4").unwrap())
                 },
                 repo: "helix-editor/helix".to_string()
