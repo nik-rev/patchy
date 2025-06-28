@@ -14,7 +14,7 @@ use colored::Colorize as _;
 use reqwest::Client;
 
 use crate::commit::Commit;
-use crate::types::{BranchAndRemote, GitHubResponse, Remote, Repo};
+use crate::github_api::{BranchAndRemote, GitHubResponse, Remote, Repo};
 use crate::utils::{display_link, make_request, normalize_commit_msg, with_uuid};
 
 /// Spawn a git process and collect its output
@@ -319,7 +319,7 @@ pub async fn fetch_branch(
     })?;
 
     let info = BranchAndRemote {
-        branch: crate::types::Branch {
+        branch: crate::github_api::Branch {
             local_branch_name: remote.branch.clone(),
             upstream_branch_name: remote.branch.clone(),
         },
@@ -359,7 +359,7 @@ pub async fn fetch_pull_request(
     })?;
 
     let info = BranchAndRemote {
-        branch: crate::types::Branch {
+        branch: crate::github_api::Branch {
             upstream_branch_name: response.head.r#ref.clone(),
             local_branch_name: custom_branch_name.map_or_else(
                 || {

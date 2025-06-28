@@ -8,8 +8,8 @@ mod cli;
 mod commands;
 mod commit;
 mod git;
+mod github_api;
 pub mod interact;
-mod types;
 mod utils;
 
 /// Root of patchy's configuration

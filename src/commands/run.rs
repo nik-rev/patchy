@@ -10,7 +10,7 @@ use colored::Colorize as _;
 use crate::commands::pr_fetch::ignore_octothorpe;
 use crate::commit::Commit;
 use crate::git::{self, GIT_ROOT, git};
-use crate::types::{Branch, BranchAndRemote, Configuration, Remote};
+use crate::github_api::{Branch, BranchAndRemote, Configuration, Remote};
 use crate::utils::{display_link, with_uuid};
 use crate::{CONFIG_FILE, CONFIG_ROOT, commands, confirm_prompt};
 
