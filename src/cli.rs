@@ -3,7 +3,7 @@
 use std::{path::PathBuf, str::FromStr};
 
 use clap::{
-    Parser, Subcommand,
+    CommandFactory as _, Parser, Subcommand,
     builder::styling::{AnsiColor, Effects},
 };
 use tap::Pipe as _;
@@ -14,6 +14,9 @@ use crate::{commands, commit::Commit};
 #[derive(Parser, Debug)]
 #[command(version, styles = STYLES, long_about = None)]
 pub struct Cli {
+    /// Verbosity for patchy
+    #[command(flatten)]
+    pub verbosity: clap_verbosity_flag::Verbosity<clap_verbosity_flag::InfoLevel>,
     /// Command to invoke
     #[command(subcommand)]
     pub command: Command,
@@ -70,6 +73,12 @@ pub enum Command {
         #[arg(short, long)]
         checkout: bool,
     },
+    /// Generate shell completions
+    Completions {
+        /// Shell to generate completions for
+        #[arg(value_enum)]
+        shell: clap_complete_command::Shell,
+    },
 }
 
 impl Command {
@@ -93,6 +102,9 @@ impl Command {
                 commit,
                 checkout,
             } => commands::branch_fetch(remote, commit, checkout).await?,
+            Self::Completions { shell } => {
+                shell.generate(&mut Cli::command(), &mut std::io::stdout());
+            }
         }
 
         Ok(())
