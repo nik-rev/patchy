@@ -1,7 +1,5 @@
 //! Parse the command-line arguments
 
-use std::path::PathBuf;
-
 use clap::{
     CommandFactory as _, Parser, Subcommand,
     builder::styling::{AnsiColor, Effects},
@@ -9,7 +7,7 @@ use clap::{
 
 use crate::{
     commands,
-    config::{BranchName, Commit, PrNumber, Remote},
+    config::{BranchName, Commit, PatchName, PrNumber, Remote},
 };
 
 /// A tool which makes it easy to declaratively manage personal forks by automatically merging pull requests
@@ -40,7 +38,7 @@ pub enum Command {
         commit: Commit,
         /// Choose a custom file name for the `.patch` file
         #[arg(short, long)]
-        filename: Option<PathBuf>,
+        filename: Option<PatchName>,
     },
     /// Fetch pull request for a GitHub repository as a local branch
     PrFetch {
@@ -138,6 +136,8 @@ pub struct Branch {
 
 #[cfg(test)]
 mod test {
+    use crate::config::{RepoName, RepoOwner};
+
     use super::*;
 
     #[test]
@@ -145,8 +145,8 @@ mod test {
         assert_eq!(
             "helix-editor/helix".parse::<Remote>().unwrap(),
             Remote {
-                owner: "helix-editor".to_string(),
-                repo: "helix".to_string(),
+                owner: RepoOwner::try_new("helix-editor").unwrap(),
+                repo: RepoName::try_new("helix").unwrap(),
                 branch: BranchName::try_new("main").unwrap(),
                 commit: None
             }
@@ -156,8 +156,8 @@ mod test {
                 .parse::<Remote>()
                 .unwrap(),
             Remote {
-                owner: "helix-editor".to_string(),
-                repo: "helix".to_string(),
+                owner: RepoOwner::try_new("helix-editor").unwrap(),
+                repo: RepoName::try_new("helix").unwrap(),
                 branch: BranchName::try_new("master").unwrap(),
                 commit: Some(Commit::try_new("1a2b3c").unwrap())
             }

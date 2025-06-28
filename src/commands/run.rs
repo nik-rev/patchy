@@ -187,8 +187,8 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
 
         log::info!(
             "Merged branch {}/{}/{} {}",
-            owner.bright_blue(),
-            repo.bright_blue(),
+            owner.as_ref().bright_blue(),
+            repo.as_ref().bright_blue(),
             branch.as_ref().bright_blue(),
             remote
                 .commit

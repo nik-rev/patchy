@@ -3,7 +3,7 @@
 use anyhow::{Context as _, anyhow};
 use colored::Colorize as _;
 
-use crate::config::{BranchName, Commit, PrNumber, Remote};
+use crate::config::{BranchName, Commit, PrNumber, Remote, RepoName, RepoOwner};
 use crate::git::{fetch_pull_request, git};
 
 /// Fetch the given `pr` of `remote` at `commit` and store it in local `branch`
@@ -33,8 +33,8 @@ pub async fn pr_fetch(
                     .and_then(|x| x.split_once('/'))
                     .with_context(err)?;
                 Ok(Remote {
-                    owner: owner.to_string(),
-                    repo: repo.to_string(),
+                    owner: RepoOwner::try_new(owner)?,
+                    repo: RepoName::try_new(repo)?,
                     branch: BranchName::try_new("main").expect("`main` is a valid branch name"),
                     commit: None,
                 })

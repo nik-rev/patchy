@@ -3,7 +3,7 @@
 use anyhow::{anyhow, bail};
 use itertools::Itertools;
 use nutype::nutype;
-use std::{convert::Infallible, num::NonZeroU32, str::FromStr};
+use std::{convert::Infallible, fmt::Display, num::NonZeroU32, path::PathBuf, str::FromStr};
 use tap::Pipe as _;
 
 use indexmap::IndexSet;
@@ -17,7 +17,7 @@ pub struct Config {
     pub local_branch: BranchName,
     /// List of patches to apply
     #[serde(default)]
-    pub patches: IndexSet<String>,
+    pub patches: IndexSet<PatchName>,
     /// List of pull request to apply
     #[serde(default)]
     pub pull_requests: Vec<PullRequest>,
@@ -34,9 +34,9 @@ pub struct Config {
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Remote {
     /// e.g. `helix-editor`
-    pub owner: String,
+    pub owner: RepoOwner,
     /// e.g. `helix`
-    pub repo: String,
+    pub repo: RepoName,
     /// e.g. `master`
     pub branch: BranchName,
     /// e.g. `1a2b3c`
@@ -66,6 +66,9 @@ impl FromStr for Remote {
             bail!("Invalid branch format: {item}. Expected format: owner/repo/branch");
         };
 
+        let owner = RepoOwner::try_new(owner)?;
+        let repo = RepoName::try_new(repo)?;
+
         let branch = parts
             // insert back the removed '/', this could be part of the branch itself
             // e.g. in `helix-editor/helix/master/main` the branch is considered to be `master/main`
@@ -87,8 +90,8 @@ impl FromStr for Remote {
             .map_err(|err| anyhow!("invalid branch name: {err}"))?;
 
         Ok(Self {
-            owner: owner.to_string(),
-            repo: repo.to_string(),
+            owner,
+            repo,
             branch,
             commit,
         })
@@ -184,11 +187,67 @@ impl FromStr for Ref {
     }
 }
 
+#[cfg(test)]
+impl From<&str> for RepoOwner {
+    fn from(value: &str) -> Self {
+        Self::try_new(value).unwrap()
+    }
+}
+#[cfg(test)]
+impl From<&str> for RepoName {
+    fn from(value: &str) -> Self {
+        Self::try_new(value).unwrap()
+    }
+}
+#[cfg(test)]
+impl From<&str> for BranchName {
+    fn from(value: &str) -> Self {
+        Self::try_new(value).unwrap()
+    }
+}
+#[cfg(test)]
+impl From<&str> for Commit {
+    fn from(value: &str) -> Self {
+        Self::try_new(value).unwrap()
+    }
+}
+
 /// Number of a pull request
 #[nutype(const_fn, derive(Eq, PartialEq, Display, Debug, FromStr, Copy, Clone))]
 pub struct PrNumber(NonZeroU32);
 
+#[cfg(test)]
+impl From<u32> for PrNumber {
+    fn from(value: u32) -> Self {
+        Self::new(NonZeroU32::new(value).unwrap())
+    }
+}
+
+/// Represents owner of a repository
+///
+/// E.g. in `helix-editor/helix/master`, this is `helix-editor`
+#[nutype(
+    validate(not_empty),
+    derive(
+        Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef, Display, Serialize
+    )
+)]
+pub struct RepoOwner(String);
+
+/// Represents name of a repository
+///
+/// E.g. in `helix-editor/helix/master`, this is `helix`
+#[nutype(
+    validate(not_empty),
+    derive(
+        Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef, Display, Serialize
+    )
+)]
+pub struct RepoName(String);
+
 /// Name of a branch in git
+///
+/// E.g. in `helix-editor/helix/master`, this is `master`
 #[nutype(
     validate(not_empty),
     derive(
@@ -204,6 +263,16 @@ impl FromStr for BranchName {
         Self::try_new(s).map_err(|err| match err {
             BranchNameError::NotEmptyViolated => "branch name cannot be empty".to_string(),
         })
+    }
+}
+
+/// File name of a patch
+#[nutype(validate(predicate = |p| !p.as_os_str().is_empty()), derive(Hash, Eq, PartialEq, Debug, AsRef, Deserialize, Clone, FromStr))]
+pub struct PatchName(PathBuf);
+
+impl Display for PatchName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_ref().display())
     }
 }
 
@@ -264,45 +333,45 @@ mod tests {
             (
                 "helix-editor/helix/master @ 1a2b3c",
                 Remote {
-                    owner: "helix-editor".to_string(),
-                    repo: "helix".to_string(),
-                    branch: BranchName::try_new("master").unwrap(),
-                    commit: Some(Commit::try_new("1a2b3c".to_string()).unwrap()),
+                    owner: "helix-editor".into(),
+                    repo: "helix".into(),
+                    branch: "master".into(),
+                    commit: Some("1a2b3c".into()),
                 },
             ),
             (
                 "helix-editor/helix @ deadbeef",
                 Remote {
-                    owner: "helix-editor".to_string(),
-                    repo: "helix".to_string(),
-                    branch: BranchName::try_new(Remote::DEFAULT_BRANCH).unwrap(),
-                    commit: Some(Commit::try_new("deadbeef".to_string()).unwrap()),
+                    owner: "helix-editor".into(),
+                    repo: "helix".into(),
+                    branch: Remote::DEFAULT_BRANCH.into(),
+                    commit: Some("deadbeef".into()),
                 },
             ),
             (
                 "helix-editor/helix/feat/feature-x @ abc123",
                 Remote {
-                    owner: "helix-editor".to_string(),
-                    repo: "helix".to_string(),
-                    branch: BranchName::try_new("feat/feature-x").unwrap(),
-                    commit: Some(Commit::try_new("abc123".to_string()).unwrap()),
+                    owner: "helix-editor".into(),
+                    repo: "helix".into(),
+                    branch: "feat/feature-x".into(),
+                    commit: Some("abc123".into()),
                 },
             ),
             (
                 "owner/repo/branch",
                 Remote {
-                    owner: "owner".to_string(),
-                    repo: "repo".to_string(),
-                    branch: BranchName::try_new("branch").unwrap(),
+                    owner: "owner".into(),
+                    repo: "repo".into(),
+                    branch: "branch".into(),
                     commit: None,
                 },
             ),
             (
                 "owner/repo",
                 Remote {
-                    owner: "owner".to_string(),
-                    repo: "repo".to_string(),
-                    branch: BranchName::try_new(Remote::DEFAULT_BRANCH).unwrap(),
+                    owner: "owner".into(),
+                    repo: "repo".into(),
+                    branch: Remote::DEFAULT_BRANCH.into(),
                     commit: None,
                 },
             ),
@@ -338,7 +407,7 @@ patches = ['remove-tab']"#;
             conf,
             Config {
                 local_branch: BranchName::try_new("patchy".to_string()).unwrap(),
-                patches: indexset!["remove-tab".to_string()],
+                patches: indexset![PatchName::try_new("remove-tab".into()).unwrap()],
                 pull_requests: vec![
                     PullRequest {
                         number: pr_number!(10000),

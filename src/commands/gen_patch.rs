@@ -6,12 +6,12 @@ use std::path::PathBuf;
 use anyhow::bail;
 
 use crate::CONFIG_PATH;
-use crate::config::Commit;
+use crate::config::{Commit, PatchName};
 use crate::git::git;
 use crate::utils::normalize_commit_msg;
 
 /// Generate patch `filename` at the given `Commit`
-pub fn gen_patch(commit: Commit, filename: Option<PathBuf>) -> anyhow::Result<()> {
+pub fn gen_patch(commit: Commit, filename: Option<PatchName>) -> anyhow::Result<()> {
     if !CONFIG_PATH.exists() {
         log::info!(
             "Config directory {} does not exist, creating it...",
@@ -23,15 +23,17 @@ pub fn gen_patch(commit: Commit, filename: Option<PathBuf>) -> anyhow::Result<()
     // 1. if the user provides a custom filename for the patch file, use that
     // 2. otherwise use the commit message
     // 3. if all fails use the commit hash
-    let patch_filename = filename.map_or_else(
-        || {
-            git(["log", "--format=%B", "--max-count=1", commit.as_ref()]).map_or_else(
-                |_| commit.clone().into_inner(),
-                |commit_msg| normalize_commit_msg(&commit_msg),
-            )
-        },
-        |filename| filename.to_str().unwrap_or("").to_string(),
-    );
+    let patch_filename = filename.unwrap_or_else(|| {
+        git(["log", "--format=%B", "--max-count=1", commit.as_ref()]).map_or_else(
+            |_| {
+                PatchName::try_new(commit.clone().into_inner().into()).expect("commit is not empty")
+            },
+            |commit_msg| {
+                PatchName::try_new(PathBuf::from(normalize_commit_msg(&commit_msg)))
+                    .expect("normalized commit message is not empty")
+            },
+        )
+    });
 
     let patch_file_path = CONFIG_PATH.join(format!("{patch_filename}.patch"));
 
