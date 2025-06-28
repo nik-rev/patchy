@@ -8,31 +8,10 @@ use anyhow::{anyhow, bail};
 use colored::Colorize as _;
 
 use crate::commands::pr_fetch::ignore_octothorpe;
-use crate::commit::Commit;
 use crate::git::{self, GIT_ROOT, git};
 use crate::github_api::{Branch, BranchAndRemote, Configuration, Remote};
-use crate::utils::{display_link, with_uuid};
+use crate::utils::{display_link, parse_if_maybe_hash, with_uuid};
 use crate::{CONFIG_FILE, CONFIG_ROOT, commands, confirm_prompt};
-
-/// Parses user inputs of the form `<head><syntax><commit-hash>`
-///
-/// Returns the user's input but also the commit hash if it exists
-pub fn parse_if_maybe_hash(input: &str, syntax: &str) -> (String, Option<Commit>) {
-    let parts: Vec<_> = input.split(syntax).collect();
-
-    let len = parts.len();
-
-    if len == 1 {
-        // The string does not contain the <syntax>, so the user chose to use the latest
-        // commit rather than a specific one
-        (input.into(), None)
-    } else {
-        // They want to use a specific commit
-        let output: String = parts[0..len - 1].iter().map(|s| String::from(*s)).collect();
-        let commit_hash = (parts[len - 1].to_owned()).parse::<Commit>().ok();
-        (output, commit_hash)
-    }
-}
 
 /// Run patchy, if `yes` then there will be no prompt
 pub async fn run(yes: bool) -> anyhow::Result<()> {

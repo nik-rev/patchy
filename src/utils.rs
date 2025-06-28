@@ -4,7 +4,27 @@ use anyhow::anyhow;
 use rand::{Rng as _, distributions};
 use reqwest::header::USER_AGENT;
 
-use crate::git::CLIENT;
+use crate::{commit::Commit, git::CLIENT};
+
+/// Parses user inputs of the form `<head><syntax><commit-hash>`
+///
+/// Returns the user's input but also the commit hash if it exists
+pub fn parse_if_maybe_hash(input: &str, syntax: &str) -> (String, Option<Commit>) {
+    let parts: Vec<_> = input.split(syntax).collect();
+
+    let len = parts.len();
+
+    if len == 1 {
+        // The string does not contain the <syntax>, so the user chose to use the latest
+        // commit rather than a specific one
+        (input.into(), None)
+    } else {
+        // They want to use a specific commit
+        let output: String = parts[0..len - 1].iter().map(|s| String::from(*s)).collect();
+        let commit_hash = (parts[len - 1].to_owned()).parse::<Commit>().ok();
+        (output, commit_hash)
+    }
+}
 
 /// Add a uuid identifier to the string to make it unique
 pub fn with_uuid(s: &str) -> String {
