@@ -14,7 +14,7 @@ use colored::Colorize as _;
 use reqwest::Client;
 
 use crate::commit::Commit;
-use crate::github_api::{BranchAndRemote, GitHubResponse, Remote, Repo};
+use crate::github_api::{GitHubResponse, Remote, RemoteBranch, Repo};
 use crate::utils::{display_link, make_request, normalize_commit_msg, with_uuid};
 
 /// Spawn a git process and collect its output
@@ -72,61 +72,61 @@ pub static CLIENT: LazyLock<Client> = LazyLock::new(|| *Box::new(Client::new()))
 
 /// Fetches a branch of a remote into local. Optionally accepts a commit hash
 /// for versioning.
-pub fn add_remote_branch(info: &BranchAndRemote, commit_hash: Option<&Commit>) -> Result<()> {
+pub fn add_remote_branch(remote_branch: &RemoteBranch, commit: Option<&Commit>) -> Result<()> {
     if let Err(err) = git([
         "remote",
         "add",
-        &info.remote.local_remote_alias,
-        &info.remote.repository_url,
+        &remote_branch.remote.local_remote_alias,
+        &remote_branch.remote.repository_url,
     ]) {
-        git(["remote", "remove", &info.remote.local_remote_alias])?;
+        git(["remote", "remove", &remote_branch.remote.local_remote_alias])?;
         bail!("Failed to fetch remote: {err}");
     }
 
     log::trace!(
         "Added remote {} for repository {}",
-        &info.remote.repository_url,
-        &info.remote.local_remote_alias
+        &remote_branch.remote.repository_url,
+        &remote_branch.remote.local_remote_alias
     );
 
     if let Err(err) = git([
         "fetch",
-        &info.remote.repository_url,
+        &remote_branch.remote.repository_url,
         &format!(
             "{}:{}",
-            info.branch.upstream_branch_name, info.branch.local_branch_name
+            remote_branch.branch.upstream_branch_name, remote_branch.branch.local_branch_name
         ),
     ]) {
         bail!(
             "Failed to find branch {} of GitHub repository {}. Are you sure it exists?\n{err}",
-            info.branch.upstream_branch_name,
-            info.remote.repository_url
+            remote_branch.branch.upstream_branch_name,
+            remote_branch.remote.repository_url
         );
     }
 
     log::trace!(
         "Fetched branch {} as {} from repository {}",
-        info.branch.upstream_branch_name,
-        info.branch.local_branch_name,
-        &info.remote.repository_url
+        remote_branch.branch.upstream_branch_name,
+        remote_branch.branch.local_branch_name,
+        &remote_branch.remote.repository_url
     );
 
-    if let Some(commit_hash) = commit_hash {
+    if let Some(commit) = commit {
         git([
             "branch",
             "--force",
-            &info.branch.local_branch_name,
-            commit_hash.as_ref(),
+            &remote_branch.branch.local_branch_name,
+            commit.as_ref(),
         ])
         .map_err(|err| {
             anyhow!(
                 "Failed to find commit {} of branch {}. Are you sure it exists?\n{err}",
-                commit_hash.as_ref(),
-                info.branch.local_branch_name
+                commit.as_ref(),
+                remote_branch.branch.local_branch_name
             )
         })?;
 
-        log::trace!("...and did a hard reset to commit {}", commit_hash.as_ref());
+        log::trace!("...and did a hard reset to commit {}", commit.as_ref());
     }
 
     Ok(())
@@ -186,7 +186,7 @@ pub fn merge_into_main(local_branch: &str, remote_branch: &str) -> Result<String
 
 /// Merge the `pull_request` into patchy's branch
 pub fn merge_pull_request(
-    info: &BranchAndRemote,
+    info: &RemoteBranch,
     pull_request: &str,
     pr_title: &str,
     pr_url: &str,
@@ -272,7 +272,7 @@ enum AvailableBranch {
 /// We also don't want to ask for a prompt for a custom name, as it would be
 /// pretty annoying to specify a name for each branch if you have like 30 pull
 /// requests you want to merge
-fn first_available_branch(branch: &str) -> AvailableBranch {
+fn find_first_available_branch(branch: &str) -> AvailableBranch {
     let branch_exists = git(["rev-parse", "--verify", branch]).is_err();
 
     if branch_exists {
@@ -300,7 +300,7 @@ fn first_available_branch(branch: &str) -> AvailableBranch {
 pub async fn fetch_branch(
     remote: &crate::cli::Remote,
     commit: Option<&Commit>,
-) -> Result<(Repo, BranchAndRemote)> {
+) -> Result<(Repo, RemoteBranch)> {
     let url = format!(
         "https://api.github.com/repos/{}/{}",
         remote.owner, remote.repo
@@ -318,14 +318,14 @@ pub async fn fetch_branch(
         anyhow!("Could not parse response.\n{response}. Could not parse because: \n{err}")
     })?;
 
-    let info = BranchAndRemote {
-        branch: crate::github_api::Branch {
-            local_branch_name: remote.branch.clone(),
-            upstream_branch_name: remote.branch.clone(),
-        },
+    let info = RemoteBranch {
         remote: Remote {
             repository_url: response.clone_url.clone(),
             local_remote_alias: with_uuid(&format!("{}/{}", &remote.owner, remote.repo)),
+        },
+        branch: crate::github_api::Branch {
+            local_branch_name: remote.branch.clone(),
+            upstream_branch_name: remote.branch.clone(),
         },
     };
 
@@ -347,32 +347,18 @@ pub async fn fetch_pull_request(
     pull_request: &str,
     custom_branch_name: Option<&str>,
     commit_hash: Option<&Commit>,
-) -> Result<(GitHubResponse, BranchAndRemote)> {
+) -> Result<(GitHubResponse, RemoteBranch)> {
     let url = format!("https://api.github.com/repos/{repo}/pulls/{pull_request}");
 
     let response = make_request(&url)
         .await
-        .map_err(|err| anyhow!("Could not fetch pull request #{pull_request}\n{err}\n"))?;
+        .map_err(|err| anyhow!("failed to fetch pull request #{pull_request}\n{err}\n"))?;
 
     let response: GitHubResponse = serde_json::from_str(&response).map_err(|err| {
-        anyhow!("Could not parse response.\n{response}. Could not parse because: \n{err}")
+        anyhow!("failed to parse GitHub response.\n{response}. Could not parse because: \n{err}")
     })?;
 
-    let info = BranchAndRemote {
-        branch: crate::github_api::Branch {
-            upstream_branch_name: response.head.r#ref.clone(),
-            local_branch_name: custom_branch_name.map_or_else(
-                || {
-                    let branch_name = &format!("{pull_request}/{}", &response.head.r#ref);
-
-                    match first_available_branch(branch_name) {
-                        AvailableBranch::First => branch_name.to_string(),
-                        AvailableBranch::Other(branch) => branch,
-                    }
-                },
-                Into::into,
-            ),
-        },
+    let remote_branch = RemoteBranch {
         remote: Remote {
             repository_url: response.head.repo.clone_url.clone(),
             local_remote_alias: with_uuid(&format!(
@@ -381,11 +367,25 @@ pub async fn fetch_pull_request(
                 title = normalize_commit_msg(&response.html_url)
             )),
         },
+        branch: crate::github_api::Branch {
+            upstream_branch_name: response.head.r#ref.clone(),
+            local_branch_name: custom_branch_name.map_or_else(
+                || {
+                    let branch_name = &format!("{pull_request}/{}", &response.head.r#ref);
+
+                    match find_first_available_branch(branch_name) {
+                        AvailableBranch::First => branch_name.to_string(),
+                        AvailableBranch::Other(branch) => branch,
+                    }
+                },
+                Into::into,
+            ),
+        },
     };
 
-    add_remote_branch(&info, commit_hash).map_err(|err| {
-        anyhow!("Could not add remote branch for pull request #{pull_request}, skipping.\n{err}")
+    add_remote_branch(&remote_branch, commit_hash).map_err(|err| {
+        anyhow!("failed to add remote branch for pull request #{pull_request}, skipping.\n{err}")
     })?;
 
-    Ok((response, info))
+    Ok((response, remote_branch))
 }

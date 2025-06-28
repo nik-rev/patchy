@@ -6,33 +6,26 @@ use std::io::Write as _;
 use anyhow::bail;
 use colored::Colorize as _;
 
-use crate::git::GIT_ROOT;
-use crate::{CONFIG_FILE, CONFIG_ROOT, confirm_prompt};
+use crate::{CONFIG_FILE_PATH, CONFIG_PATH, confirm_prompt};
 
 /// Initialize the Patchy config file
 pub fn init() -> anyhow::Result<()> {
-    let example_config = include_bytes!("../../example-config.toml");
-
-    let config_path = GIT_ROOT.join(CONFIG_ROOT.as_str());
-
-    let config_file_path = config_path.join(CONFIG_FILE);
-
-    if config_file_path.exists()
+    if CONFIG_FILE_PATH.exists()
         && !confirm_prompt!(
             "File {} already exists. Overwrite it?",
-            config_file_path.to_string_lossy().bright_blue(),
+            CONFIG_FILE_PATH.to_string_lossy().bright_blue(),
         )
     {
-        bail!("Did not overwrite {}", config_file_path.display());
+        bail!("Did not overwrite {}", CONFIG_FILE_PATH.display());
     }
 
-    fs::create_dir_all(config_path)?;
+    fs::create_dir_all(&*CONFIG_PATH)?;
 
-    let mut file = File::create(&config_file_path)?;
+    let mut file = File::create(&*CONFIG_FILE_PATH)?;
 
-    file.write_all(example_config)?;
+    file.write_all(include_bytes!("../../example-config.toml"))?;
 
-    log::info!("Created config file {}", config_file_path.display());
+    log::info!("Created config file {}", CONFIG_FILE_PATH.display());
 
     Ok(())
 }

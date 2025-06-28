@@ -38,7 +38,7 @@ pub struct Remote {
 }
 
 #[derive(Debug)]
-pub struct BranchAndRemote {
-    pub branch: Branch,
+pub struct RemoteBranch {
     pub remote: Remote,
+    pub branch: Branch,
 }

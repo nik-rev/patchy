@@ -24,7 +24,8 @@ pub async fn pr_fetch(
     let remote = remote.map_or_else(
         || -> anyhow::Result<Remote> {
             let remote = git(["remote", "get-url", "origin"])?;
-            let err = || anyhow!("git command returned invalid remote. Output {remote}");
+            let err = || anyhow!("git command returned invalid remote: {remote}");
+
             if remote.starts_with(GITHUB_REMOTE_PREFIX) && remote.ends_with(GITHUB_REMOTE_SUFFIX) {
                 let start = GITHUB_REMOTE_PREFIX.len();
                 let end = remote.len() - GITHUB_REMOTE_SUFFIX.len();

@@ -5,21 +5,19 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 
-use crate::CONFIG_ROOT;
+use crate::CONFIG_PATH;
 use crate::commit::Commit;
-use crate::git::{GIT_ROOT, git};
+use crate::git::git;
 use crate::utils::normalize_commit_msg;
 
 /// Generate patch `filename` at the given `Commit`
 pub fn gen_patch(commit: Commit, filename: Option<PathBuf>) -> anyhow::Result<()> {
-    let config_path = GIT_ROOT.join(CONFIG_ROOT.as_str());
-
-    if !config_path.exists() {
+    if !CONFIG_PATH.exists() {
         log::info!(
             "Config directory {} does not exist, creating it...",
-            config_path.to_string_lossy()
+            CONFIG_PATH.to_string_lossy()
         );
-        fs::create_dir_all(&config_path)?;
+        fs::create_dir_all(&*CONFIG_PATH)?;
     }
 
     // 1. if the user provides a custom filename for the patch file, use that
@@ -32,17 +30,15 @@ pub fn gen_patch(commit: Commit, filename: Option<PathBuf>) -> anyhow::Result<()
                 |commit_msg| normalize_commit_msg(&commit_msg),
             )
         },
-        |filename| filename.to_str().unwrap_or_default().to_string(),
+        |filename| filename.to_str().unwrap_or("").to_string(),
     );
 
-    let patch_filename = format!("{patch_filename}.patch");
-
-    let patch_file_path = config_path.join(&patch_filename);
+    let patch_file_path = CONFIG_PATH.join(format!("{patch_filename}.patch"));
 
     // Paths are UTF-8 encoded. If we cannot convert to UTF-8 that means it is not a
     // valid path
     let Some(patch_file_path_str) = patch_file_path.as_os_str().to_str() else {
-        bail!("Not a valid path: {patch_file_path:?}");
+        bail!("invalid path: {patch_file_path:?}");
     };
 
     if let Err(err) = git([
