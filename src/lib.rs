@@ -9,7 +9,6 @@ mod commands;
 mod commit;
 mod git;
 mod github_api;
-pub mod interact;
 mod utils;
 
 /// Root of patchy's configuration

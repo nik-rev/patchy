@@ -65,3 +65,18 @@ pub async fn make_request(url: &str) -> anyhow::Result<String> {
         Err(err) => Err(anyhow!("Error sending request: {err}")),
     }
 }
+
+/// Get a yes or no answer from the user
+#[macro_export]
+macro_rules! confirm_prompt {
+    ($($arg:tt)*) => {{
+        dialoguer::Confirm::new()
+            .with_prompt(format!(
+                "\n  {} {}",
+                "»".bright_black(),
+                format!($($arg)*)
+            ))
+            .interact()
+            .unwrap()
+    }};
+}
