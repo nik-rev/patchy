@@ -4,7 +4,8 @@ use anyhow::{Context as _, anyhow};
 use colored::Colorize as _;
 
 use crate::config::{BranchName, CommitId, PrNumber, Remote, RepoName, RepoOwner};
-use crate::git::{fetch_pull_request, git};
+use crate::git_high_level::git;
+use crate::github_api::fetch_pull_request;
 
 /// Fetch the given `pr` of `remote` at `commit` and store it in local `branch`
 ///
@@ -47,7 +48,6 @@ pub async fn pr_fetch(
 
     let Ok((response, info)) = fetch_pull_request(
         &format!("{}/{}", remote.owner, remote.repo),
-        // TODO: make fetch_pull_request accept a u32 instead
         pr,
         branch,
         commit.as_ref(),

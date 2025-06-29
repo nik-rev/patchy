@@ -7,7 +7,7 @@ use anyhow::bail;
 
 use crate::CONFIG_PATH;
 use crate::config::{CommitId, PatchName};
-use crate::git::git;
+use crate::git_high_level::git;
 use crate::utils::normalize_commit_msg;
 
 /// Generate patch `filename` at the given `Commit`

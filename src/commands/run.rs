@@ -9,10 +9,12 @@ use std::path::PathBuf;
 use anyhow::{anyhow, bail};
 use colored::Colorize as _;
 
-use crate::git::{self, GIT_ROOT, git};
-use crate::github_api::{Branch, Remote, RemoteBranch};
+use crate::git_high_level::{self, git};
+use crate::github_api::{self, Branch, Remote, RemoteBranch};
 use crate::utils::{display_link, with_uuid};
-use crate::{CONFIG_FILE, CONFIG_FILE_PATH, CONFIG_PATH, CONFIG_ROOT, commands, confirm_prompt};
+use crate::{
+    CONFIG_FILE, CONFIG_FILE_PATH, CONFIG_PATH, CONFIG_ROOT, commands, confirm_prompt, git,
+};
 
 /// Backup for a file
 struct FileBackup {
@@ -108,9 +110,9 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         },
     };
 
-    git::add_remote_branch(&info, commit.as_ref())?;
+    git_high_level::add_remote_branch(&info, commit.as_ref())?;
 
-    let previous_branch = git::checkout_from_remote(
+    let previous_branch = git_high_level::checkout_from_remote(
         &info.branch.local_branch_name,
         &info.remote.local_remote_alias,
     )?;
@@ -136,7 +138,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
     {
         // TODO: refactor this to not use such deep nesting
         let Ok((response, info)) =
-            git::fetch_pull_request(&config.repo, *pull_request, None, commit.as_ref())
+            github_api::fetch_pull_request(&config.repo, *pull_request, None, commit.as_ref())
                 .await
                 .inspect_err(|err| {
                     log::error!("failed to fetch branch from remote:\n{err}");
@@ -145,9 +147,12 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
             continue;
         };
 
-        if let Err(err) =
-            git::merge_pull_request(&info, *pull_request, &response.title, &response.html_url)
-        {
+        if let Err(err) = git_high_level::merge_pull_request(
+            &info,
+            *pull_request,
+            &response.title,
+            &response.html_url,
+        ) {
             log::error!("failed to merge {pull_request}: {err}");
             continue;
         }
@@ -172,13 +177,13 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         let owner = &remote.owner;
         let repo = &remote.repo;
         let branch = &remote.branch;
-        let Ok((_, info)) = git::fetch_branch(remote).await.inspect_err(|err| {
+        let Ok((_, info)) = github_api::fetch_branch(remote).await.inspect_err(|err| {
             log::error!("failed to fetch branch {owner}/{repo}/{branch}: {err}");
         }) else {
             continue;
         };
 
-        if let Err(err) = git::merge_into_main(
+        if let Err(err) = git_high_level::merge(
             &info.branch.local_branch_name,
             &info.branch.upstream_branch_name,
         ) {
@@ -206,7 +211,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         }
     }
 
-    if let Err(err) = fs::create_dir_all(GIT_ROOT.join(CONFIG_ROOT.as_str())) {
+    if let Err(err) = fs::create_dir_all(git::ROOT.join(CONFIG_ROOT.as_str())) {
         git(["checkout", &previous_branch])?;
 
         git::delete_remote_and_branch(
@@ -223,7 +228,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         filename, contents, ..
     } in &backed_up_files
     {
-        let path = GIT_ROOT.join(PathBuf::from(CONFIG_ROOT.as_str()).join(filename));
+        let path = git::ROOT.join(PathBuf::from(CONFIG_ROOT.as_str()).join(filename));
         let mut file =
             File::create(&path).map_err(|err| anyhow!("failed to restore backup: {err}"))?;
 
@@ -233,7 +238,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
     // apply patches if they exist
 
     for patch in config.patches {
-        let file_name = GIT_ROOT
+        let file_name = git::ROOT
             .join(CONFIG_ROOT.as_str())
             .join(format!("{patch}.patch"));
 
@@ -261,7 +266,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
     }
 
     git(["add", CONFIG_ROOT.as_str()])?;
-    git(["commit", "--message", "patchy: Restore configuration files"])?;
+    git::commit("restore configuration files")?;
 
     let temporary_branch = with_uuid("temp-branch");
 

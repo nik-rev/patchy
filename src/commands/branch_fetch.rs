@@ -3,7 +3,8 @@
 use colored::Colorize as _;
 
 use crate::config::{CommitId, Remote};
-use crate::git::{fetch_branch, git};
+use crate::git_high_level::git;
+use crate::github_api;
 use anyhow::anyhow;
 
 /// Fetch the given branch
@@ -12,7 +13,7 @@ pub async fn branch_fetch(
     commit: Option<CommitId>,
     checkout: bool,
 ) -> anyhow::Result<()> {
-    let (_, info) = fetch_branch(&remote).await?;
+    let (_, info) = github_api::fetch_branch(&remote).await?;
 
     log::info!(
         "Fetched branch {}/{}/{} available at branch {}{}",

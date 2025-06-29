@@ -6,7 +6,12 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::BranchName;
+use crate::{
+    config::{BranchName, CommitId, PrNumber},
+    git_high_level::{AvailableBranch, add_remote_branch, find_first_available_branch},
+    utils::{make_request, normalize_commit_msg, with_uuid},
+};
+use anyhow::{Result, anyhow};
 
 /// Data returned by GitHub's API
 #[derive(Serialize, Deserialize, Debug)]
@@ -43,4 +48,96 @@ pub struct Remote {
 pub struct RemoteBranch {
     pub remote: Remote,
     pub branch: Branch,
+}
+
+/// Fetch the branch of `remote` at the given `commit`
+pub async fn fetch_branch(remote: &crate::config::Remote) -> Result<(Repo, RemoteBranch)> {
+    let url = format!(
+        "https://api.github.com/repos/{}/{}",
+        remote.owner, remote.repo
+    );
+
+    let response = make_request(&url).await.map_err(|err| {
+        anyhow!(
+            "Could not fetch branch: {}/{}\n{err}\n",
+            remote.owner,
+            remote.repo
+        )
+    })?;
+
+    let response: Repo = serde_json::from_str(&response).map_err(|err| {
+        anyhow!("Could not parse response.\n{response}. Could not parse because: \n{err}")
+    })?;
+
+    let info = RemoteBranch {
+        remote: Remote {
+            repository_url: response.clone_url.clone(),
+            local_remote_alias: with_uuid(&format!("{}/{}", &remote.owner, remote.repo)),
+        },
+        branch: Branch {
+            local_branch_name: remote.branch.clone(),
+            upstream_branch_name: remote.branch.clone(),
+        },
+    };
+
+    add_remote_branch(&info, remote.commit.as_ref()).map_err(|err| {
+        anyhow!(
+            "Could not add remote branch {}/{}, skipping.\n{err}",
+            remote.owner,
+            remote.repo
+        )
+    })?;
+
+    Ok((response, info))
+}
+
+/// Fetch PR `pull_request` at `commit_hash` from `repo` to a local `custom_branch_name`,
+/// the branch name is generated if not supplied
+pub async fn fetch_pull_request(
+    repo: &str,
+    pull_request: PrNumber,
+    custom_branch_name: Option<BranchName>,
+    commit_hash: Option<&CommitId>,
+) -> Result<(GitHubResponse, RemoteBranch)> {
+    let url = format!("https://api.github.com/repos/{repo}/pulls/{pull_request}");
+
+    let response = make_request(&url)
+        .await
+        .map_err(|err| anyhow!("failed to fetch pull request #{pull_request}\n{err}\n"))?;
+
+    let response: GitHubResponse = serde_json::from_str(&response).map_err(|err| {
+        anyhow!("failed to parse GitHub response.\n{response}. Could not parse because: \n{err}")
+    })?;
+
+    let remote_branch = RemoteBranch {
+        remote: Remote {
+            repository_url: response.head.repo.clone_url.clone(),
+            local_remote_alias: with_uuid(&format!(
+                "{title}-{}",
+                pull_request,
+                title = normalize_commit_msg(&response.html_url)
+            )),
+        },
+        branch: Branch {
+            upstream_branch_name: response.head.r#ref.clone(),
+            local_branch_name: custom_branch_name.map_or_else(
+                || {
+                    let branch_name = &format!("{pull_request}/{}", &response.head.r#ref);
+
+                    match find_first_available_branch(branch_name) {
+                        AvailableBranch::First => BranchName::try_new(branch_name)
+                            .expect("name of the branch we create is valid"),
+                        AvailableBranch::Other(branch) => branch,
+                    }
+                },
+                Into::into,
+            ),
+        },
+    };
+
+    add_remote_branch(&remote_branch, commit_hash).map_err(|err| {
+        anyhow!("failed to add remote branch for pull request #{pull_request}, skipping.\n{err}")
+    })?;
+
+    Ok((response, remote_branch))
 }

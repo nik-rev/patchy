@@ -4,8 +4,6 @@ use anyhow::anyhow;
 use rand::{Rng as _, distributions};
 use reqwest::header::USER_AGENT;
 
-use crate::git::CLIENT;
-
 /// Add a uuid identifier to the string to make it unique
 pub fn with_uuid(s: &str) -> String {
     format!(
@@ -42,7 +40,7 @@ pub fn display_link(text: &str, url: &str) -> String {
 
 /// Send a GET request to the specified URL
 pub async fn make_request(url: &str) -> anyhow::Result<String> {
-    let request = CLIENT
+    let request = reqwest::Client::new()
         .get(url)
         .header(USER_AGENT, "{APP_NAME}")
         .send()
