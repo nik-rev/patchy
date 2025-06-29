@@ -240,9 +240,17 @@ impl FromStr for BranchName {
 /// File name of a patch
 #[nutype(
     validate(predicate = |p| !p.as_os_str().is_empty()),
-    derive(Hash, Eq, PartialEq, Debug, AsRef, Deserialize, Clone, FromStr)
+    derive(Hash, Eq, PartialEq, Debug, AsRef, Deserialize, Clone, FromStr, TryFrom)
 )]
 pub struct PatchName(PathBuf);
+
+impl TryFrom<&str> for PatchName {
+    type Error = PatchNameError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        PatchName::try_new(PathBuf::from(value))
+    }
+}
 
 impl Display for PatchName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -258,8 +266,9 @@ impl Display for PatchName {
 )]
 pub struct Commit(String);
 
-/// Does not check if the commit hash exists, just checks if it is potentially
-/// valid A commit hash can consist of `a-f` and `0-9` characters
+/// Does not check if the commit exists, just checks if it is potentially valid
+///
+/// A commit hash can consist of `a-f` and `0-9` characters
 pub fn is_valid_commit_hash(hash: &str) -> bool {
     hash.chars().all(|ch| ch.is_ascii_hexdigit())
 }
@@ -375,8 +384,8 @@ patches = ['remove-tab']"#;
         pretty_assertions::assert_eq!(
             conf,
             Config {
-                local_branch: BranchName::try_new("patchy".to_string()).unwrap(),
-                patches: indexset![PatchName::try_new("remove-tab".into()).unwrap()],
+                local_branch: "patchy".try_into().unwrap(),
+                patches: indexset!["remove-tab".try_into().unwrap()],
                 pull_requests: vec![
                     PullRequest {
                         number: 10000.try_into().unwrap(),
@@ -388,17 +397,17 @@ patches = ['remove-tab']"#;
                     },
                     PullRequest {
                         number: 454.try_into().unwrap(),
-                        commit: Some(Commit::try_new("a1b2c3").unwrap())
+                        commit: Some("a1b2c3".try_into().unwrap())
                     },
                     PullRequest {
                         number: 1.try_into().unwrap(),
-                        commit: Some(Commit::try_new("a1b2c3").unwrap())
+                        commit: Some("a1b2c3".try_into().unwrap())
                     },
                 ],
                 branches: vec![],
                 remote_branch: Branch {
-                    name: BranchName::try_new("master").unwrap(),
-                    commit: Some(Commit::try_new("a1b2c4").unwrap())
+                    name: "master".try_into().unwrap(),
+                    commit: Some("a1b2c4".try_into().unwrap())
                 },
                 repo: "helix-editor/helix".to_string()
             }
