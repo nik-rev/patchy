@@ -3,7 +3,7 @@
 use anyhow::{anyhow, bail};
 use itertools::Itertools;
 use nutype::nutype;
-use std::{convert::Infallible, fmt::Display, num::NonZeroU32, path::PathBuf, str::FromStr};
+use std::{convert::Infallible, fmt::Display, path::PathBuf, str::FromStr};
 use tap::Pipe as _;
 
 use indexmap::IndexSet;
@@ -188,18 +188,19 @@ impl FromStr for Ref {
 }
 
 /// Number of a pull request
-#[nutype_test_util::derive(From)]
-#[nutype(const_fn, derive(Eq, PartialEq, Display, Debug, FromStr, Copy, Clone))]
-pub struct PrNumber(NonZeroU32);
+#[nutype(
+    validate(greater = 0),
+    derive(Eq, PartialEq, Display, Debug, FromStr, Copy, Clone, TryFrom)
+)]
+pub struct PrNumber(u32);
 
 /// Represents owner of a repository
 ///
 /// E.g. in `helix-editor/helix/master`, this is `helix-editor`
-#[nutype_test_util::derive(From)]
 #[nutype(
     validate(not_empty),
     derive(
-        Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef, Display, Serialize
+        Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef, Display, Serialize, TryFrom
     )
 )]
 pub struct RepoOwner(String);
@@ -207,11 +208,10 @@ pub struct RepoOwner(String);
 /// Represents name of a repository
 ///
 /// E.g. in `helix-editor/helix/master`, this is `helix`
-#[nutype_test_util::derive(From)]
 #[nutype(
     validate(not_empty),
     derive(
-        Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef, Display, Serialize
+        Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef, Display, Serialize, TryFrom
     )
 )]
 pub struct RepoName(String);
@@ -219,11 +219,10 @@ pub struct RepoName(String);
 /// Name of a branch in git
 ///
 /// E.g. in `helix-editor/helix/master`, this is `master`
-#[nutype_test_util::derive(From)]
 #[nutype(
     validate(not_empty),
     derive(
-        Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef, Display, Serialize
+        Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef, Display, Serialize, TryFrom
     )
 )]
 pub struct BranchName(String);
@@ -239,8 +238,10 @@ impl FromStr for BranchName {
 }
 
 /// File name of a patch
-#[nutype_test_util::derive(From)]
-#[nutype(validate(predicate = |p| !p.as_os_str().is_empty()), derive(Hash, Eq, PartialEq, Debug, AsRef, Deserialize, Clone, FromStr))]
+#[nutype(
+    validate(predicate = |p| !p.as_os_str().is_empty()),
+    derive(Hash, Eq, PartialEq, Debug, AsRef, Deserialize, Clone, FromStr)
+)]
 pub struct PatchName(PathBuf);
 
 impl Display for PatchName {
@@ -250,10 +251,10 @@ impl Display for PatchName {
 }
 
 /// Represents a git commit hash
-#[nutype_test_util::derive(From)]
+// #[cfg_attr(test, nutype_test_util::derive(From))]
 #[nutype(
     validate(not_empty, predicate = is_valid_commit_hash),
-    derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef)
+    derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef, TryFrom)
 )]
 pub struct Commit(String);
 
@@ -307,45 +308,45 @@ mod tests {
             (
                 "helix-editor/helix/master @ 1a2b3c",
                 Remote {
-                    owner: "helix-editor".into(),
-                    repo: "helix".into(),
-                    branch: "master".into(),
-                    commit: Some("1a2b3c".into()),
+                    owner: "helix-editor".try_into().unwrap(),
+                    repo: "helix".try_into().unwrap(),
+                    branch: "master".try_into().unwrap(),
+                    commit: Some("1a2b3c".try_into().unwrap()),
                 },
             ),
             (
                 "helix-editor/helix @ deadbeef",
                 Remote {
-                    owner: "helix-editor".into(),
-                    repo: "helix".into(),
-                    branch: Remote::DEFAULT_BRANCH.into(),
-                    commit: Some("deadbeef".into()),
+                    owner: "helix-editor".try_into().unwrap(),
+                    repo: "helix".try_into().unwrap(),
+                    branch: Remote::DEFAULT_BRANCH.try_into().unwrap(),
+                    commit: Some("deadbeef".try_into().unwrap()),
                 },
             ),
             (
                 "helix-editor/helix/feat/feature-x @ abc123",
                 Remote {
-                    owner: "helix-editor".into(),
-                    repo: "helix".into(),
-                    branch: "feat/feature-x".into(),
-                    commit: Some("abc123".into()),
+                    owner: "helix-editor".try_into().unwrap(),
+                    repo: "helix".try_into().unwrap(),
+                    branch: "feat/feature-x".try_into().unwrap(),
+                    commit: Some("abc123".try_into().unwrap()),
                 },
             ),
             (
                 "owner/repo/branch",
                 Remote {
-                    owner: "owner".into(),
-                    repo: "repo".into(),
-                    branch: "branch".into(),
+                    owner: "owner".try_into().unwrap(),
+                    repo: "repo".try_into().unwrap(),
+                    branch: "branch".try_into().unwrap(),
                     commit: None,
                 },
             ),
             (
                 "owner/repo",
                 Remote {
-                    owner: "owner".into(),
-                    repo: "repo".into(),
-                    branch: Remote::DEFAULT_BRANCH.into(),
+                    owner: "owner".try_into().unwrap(),
+                    repo: "repo".try_into().unwrap(),
+                    branch: Remote::DEFAULT_BRANCH.try_into().unwrap(),
                     commit: None,
                 },
             ),
@@ -371,12 +372,6 @@ patches = ['remove-tab']"#;
 
         let conf = toml::from_str::<Config>(config).unwrap();
 
-        macro_rules! pr_number {
-            ($num:literal) => {
-                PrNumber::new(const { ::std::num::NonZeroU32::new($num).expect("nonzero") })
-            };
-        }
-
         pretty_assertions::assert_eq!(
             conf,
             Config {
@@ -384,19 +379,19 @@ patches = ['remove-tab']"#;
                 patches: indexset![PatchName::try_new("remove-tab".into()).unwrap()],
                 pull_requests: vec![
                     PullRequest {
-                        number: pr_number!(10000),
+                        number: 10000.try_into().unwrap(),
                         commit: None
                     },
                     PullRequest {
-                        number: pr_number!(10000),
+                        number: 10000.try_into().unwrap(),
                         commit: None
                     },
                     PullRequest {
-                        number: pr_number!(454),
+                        number: 454.try_into().unwrap(),
                         commit: Some(Commit::try_new("a1b2c3").unwrap())
                     },
                     PullRequest {
-                        number: pr_number!(1),
+                        number: 1.try_into().unwrap(),
                         commit: Some(Commit::try_new("a1b2c3").unwrap())
                     },
                 ],

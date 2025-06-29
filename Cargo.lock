@@ -1005,17 +1005,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nutype_test_util"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "699431a7e8152f2fccf191618ce1f3ddce91a03dc5551be1a5ddd76ede950d35"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "object"
 version = "0.36.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1088,7 +1077,6 @@ dependencies = [
  "itertools 0.14.0",
  "log",
  "nutype",
- "nutype_test_util",
  "once_cell",
  "predicates",
  "pretty_assertions",
