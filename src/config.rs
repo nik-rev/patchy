@@ -187,45 +187,15 @@ impl FromStr for Ref {
     }
 }
 
-#[cfg(test)]
-impl From<&str> for RepoOwner {
-    fn from(value: &str) -> Self {
-        Self::try_new(value).unwrap()
-    }
-}
-#[cfg(test)]
-impl From<&str> for RepoName {
-    fn from(value: &str) -> Self {
-        Self::try_new(value).unwrap()
-    }
-}
-#[cfg(test)]
-impl From<&str> for BranchName {
-    fn from(value: &str) -> Self {
-        Self::try_new(value).unwrap()
-    }
-}
-#[cfg(test)]
-impl From<&str> for Commit {
-    fn from(value: &str) -> Self {
-        Self::try_new(value).unwrap()
-    }
-}
-
 /// Number of a pull request
+#[nutype_test_util::derive(From)]
 #[nutype(const_fn, derive(Eq, PartialEq, Display, Debug, FromStr, Copy, Clone))]
 pub struct PrNumber(NonZeroU32);
-
-#[cfg(test)]
-impl From<u32> for PrNumber {
-    fn from(value: u32) -> Self {
-        Self::new(NonZeroU32::new(value).unwrap())
-    }
-}
 
 /// Represents owner of a repository
 ///
 /// E.g. in `helix-editor/helix/master`, this is `helix-editor`
+#[nutype_test_util::derive(From)]
 #[nutype(
     validate(not_empty),
     derive(
@@ -237,6 +207,7 @@ pub struct RepoOwner(String);
 /// Represents name of a repository
 ///
 /// E.g. in `helix-editor/helix/master`, this is `helix`
+#[nutype_test_util::derive(From)]
 #[nutype(
     validate(not_empty),
     derive(
@@ -248,6 +219,7 @@ pub struct RepoName(String);
 /// Name of a branch in git
 ///
 /// E.g. in `helix-editor/helix/master`, this is `master`
+#[nutype_test_util::derive(From)]
 #[nutype(
     validate(not_empty),
     derive(
@@ -267,6 +239,7 @@ impl FromStr for BranchName {
 }
 
 /// File name of a patch
+#[nutype_test_util::derive(From)]
 #[nutype(validate(predicate = |p| !p.as_os_str().is_empty()), derive(Hash, Eq, PartialEq, Debug, AsRef, Deserialize, Clone, FromStr))]
 pub struct PatchName(PathBuf);
 
@@ -277,6 +250,7 @@ impl Display for PatchName {
 }
 
 /// Represents a git commit hash
+#[nutype_test_util::derive(From)]
 #[nutype(
     validate(not_empty, predicate = is_valid_commit_hash),
     derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef)
