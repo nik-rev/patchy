@@ -40,7 +40,7 @@ pub struct Remote {
     /// e.g. `master`
     pub branch: BranchName,
     /// e.g. `1a2b3c`
-    pub commit: Option<Commit>,
+    pub commit: Option<CommitId>,
 }
 
 impl Remote {
@@ -104,7 +104,7 @@ pub struct PullRequest {
     /// Number of the pull request
     pub number: PrNumber,
     /// Commit to checkout of the pull request. If none, uses the latest commit
-    pub commit: Option<Commit>,
+    pub commit: Option<CommitId>,
 }
 
 impl FromStr for PullRequest {
@@ -132,7 +132,7 @@ pub struct Branch {
     /// Name of the branch
     pub name: BranchName,
     /// Commit to checkout when fetching this branch
-    pub commit: Option<Commit>,
+    pub commit: Option<CommitId>,
 }
 
 impl FromStr for Branch {
@@ -158,7 +158,7 @@ pub struct Ref {
     /// Git item. E.g. branch, or remote which may associate with the `commit`
     pub item: String,
     /// Commit to checkout of the `item`. If none, uses the latest commit
-    pub commit: Option<Commit>,
+    pub commit: Option<CommitId>,
 }
 
 impl FromStr for Ref {
@@ -180,7 +180,7 @@ impl FromStr for Ref {
         } else {
             // They want to use a specific commit
             let head: String = parts[0..len - 1].iter().map(|s| String::from(*s)).collect();
-            let commit = (parts[len - 1].to_owned()).parse::<Commit>().ok();
+            let commit = (parts[len - 1].to_owned()).parse::<CommitId>().ok();
             Self { item: head, commit }
         }
         .pipe(Ok)
@@ -259,29 +259,17 @@ impl Display for PatchName {
 }
 
 /// Represents a git commit hash
-// #[cfg_attr(test, nutype_test_util::derive(From))]
 #[nutype(
     validate(not_empty, predicate = is_valid_commit_hash),
-    derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef, TryFrom)
+    derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef, TryFrom, FromStr)
 )]
-pub struct Commit(String);
+pub struct CommitId(String);
 
 /// Does not check if the commit exists, just checks if it is potentially valid
 ///
 /// A commit hash can consist of `a-f` and `0-9` characters
 pub fn is_valid_commit_hash(hash: &str) -> bool {
     hash.chars().all(|ch| ch.is_ascii_hexdigit())
-}
-
-impl FromStr for Commit {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_new(s).map_err(|err| match err {
-            CommitError::NotEmptyViolated => "commit cannot be empty".to_string(),
-            CommitError::PredicateViolated => format!("invalid commit hash: {s}"),
-        })
-    }
 }
 
 /// Implement `Deserialize` for these types, given that they have a `FromStr` impl

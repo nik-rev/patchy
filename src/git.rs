@@ -4,7 +4,7 @@
 //! - Extract into a separate module, put it behind some more nice API
 //! - Use `gix`? Or anyways, we could go without spawning an entire process each
 //!   time we want to interact with Git
-use crate::config::{BranchName, Commit, PrNumber};
+use crate::config::{BranchName, CommitId, PrNumber};
 use std::path::{Path, PathBuf};
 use std::process::{self, Output};
 use std::sync::LazyLock;
@@ -72,7 +72,7 @@ pub static CLIENT: LazyLock<Client> = LazyLock::new(|| *Box::new(Client::new()))
 
 /// Fetches a branch of a remote into local. Optionally accepts a commit hash
 /// for versioning.
-pub fn add_remote_branch(remote_branch: &RemoteBranch, commit: Option<&Commit>) -> Result<()> {
+pub fn add_remote_branch(remote_branch: &RemoteBranch, commit: Option<&CommitId>) -> Result<()> {
     if let Err(err) = git([
         "remote",
         "add",
@@ -347,7 +347,7 @@ pub async fn fetch_pull_request(
     repo: &str,
     pull_request: PrNumber,
     custom_branch_name: Option<BranchName>,
-    commit_hash: Option<&Commit>,
+    commit_hash: Option<&CommitId>,
 ) -> Result<(GitHubResponse, RemoteBranch)> {
     let url = format!("https://api.github.com/repos/{repo}/pulls/{pull_request}");
 

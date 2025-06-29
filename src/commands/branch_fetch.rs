@@ -2,14 +2,14 @@
 
 use colored::Colorize as _;
 
-use crate::config::{Commit, Remote};
+use crate::config::{CommitId, Remote};
 use crate::git::{fetch_branch, git};
 use anyhow::anyhow;
 
 /// Fetch the given branch
 pub async fn branch_fetch(
     remote: Remote,
-    commit: Option<Commit>,
+    commit: Option<CommitId>,
     checkout: bool,
 ) -> anyhow::Result<()> {
     let (_, info) = fetch_branch(&remote).await?;

@@ -6,12 +6,12 @@ use std::path::PathBuf;
 use anyhow::bail;
 
 use crate::CONFIG_PATH;
-use crate::config::{Commit, PatchName};
+use crate::config::{CommitId, PatchName};
 use crate::git::git;
 use crate::utils::normalize_commit_msg;
 
 /// Generate patch `filename` at the given `Commit`
-pub fn gen_patch(commit: Commit, filename: Option<PatchName>) -> anyhow::Result<()> {
+pub fn gen_patch(commit: CommitId, filename: Option<PatchName>) -> anyhow::Result<()> {
     if !CONFIG_PATH.exists() {
         log::info!(
             "Config directory {} does not exist, creating it...",

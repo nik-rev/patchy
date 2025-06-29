@@ -7,7 +7,7 @@ use clap::{
 
 use crate::{
     commands,
-    config::{BranchName, Commit, PatchName, PrNumber, Remote},
+    config::{BranchName, CommitId, PatchName, PrNumber, Remote},
 };
 
 /// A tool which makes it easy to declaratively manage personal forks by automatically merging pull requests
@@ -35,7 +35,7 @@ pub enum Command {
     /// Generate a .patch file from a commit hash
     GenPatch {
         /// Transform this commit into a `.patch` file
-        commit: Commit,
+        commit: CommitId,
         /// Choose a custom file name for the `.patch` file
         #[arg(short, long)]
         filename: Option<PatchName>,
@@ -55,7 +55,7 @@ pub enum Command {
         branch: Option<BranchName>,
         /// When fetching this PR, reset to this commit
         #[arg(short = 'C', long)]
-        commit: Option<Commit>,
+        commit: Option<CommitId>,
         /// Check out the first fetched pull request
         #[arg(short, long)]
         checkout: bool,
@@ -68,7 +68,7 @@ pub enum Command {
         remote: Remote,
         /// When fetching this branch, reset to this commit
         #[arg(short = 'C', long)]
-        commit: Option<Commit>,
+        commit: Option<CommitId>,
         /// Check out the fetched branch
         #[arg(short, long)]
         checkout: bool,
@@ -131,7 +131,7 @@ pub struct Branch {
     /// Name of this branch in the remote
     pub name: String,
     /// When fetching this PR, reset to this commit
-    pub commit: Option<Commit>,
+    pub commit: Option<CommitId>,
 }
 
 #[cfg(test)]
@@ -159,7 +159,7 @@ mod test {
                 owner: RepoOwner::try_new("helix-editor").unwrap(),
                 repo: RepoName::try_new("helix").unwrap(),
                 branch: BranchName::try_new("master").unwrap(),
-                commit: Some(Commit::try_new("1a2b3c").unwrap())
+                commit: Some(CommitId::try_new("1a2b3c").unwrap())
             }
         );
         "helix-editor".parse::<Remote>().unwrap_err();
