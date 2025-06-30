@@ -3,6 +3,7 @@
 **Features**
 
 - You can now pass `--use-gh-cli` flag and it will use the [`gh`](https://github.com/cli/cli) CLI. This lets you avoid "Rate limit" errors if you authenticate.
+- Environment variable `PATCHY_ROOT` can be set to override where patchy's directory is (by default, uses the nearest ancestor git directory)
 
 **Breaking**
 

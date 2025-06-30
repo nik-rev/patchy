@@ -184,7 +184,7 @@ impl FromStr for Ref {
         let len = parts.len();
 
         if len == 1 {
-            // The string does not contain the <syntax>, so the user chose to use the latest
+            // The string does not contain the ` @ `, so the user chose to use the latest
             // commit rather than a specific one
             Self {
                 item: s.into(),
@@ -192,8 +192,18 @@ impl FromStr for Ref {
             }
         } else {
             // They want to use a specific commit
-            let head: String = parts[0..len - 1].iter().map(|s| String::from(*s)).collect();
-            let commit = (parts[len - 1].to_owned()).parse::<CommitId>().ok();
+            let head: String = parts
+                .get(0..len - 1)
+                .expect("`0..$.len() - 1` is all but the last elemenmt")
+                .iter()
+                .map(|s| String::from(*s))
+                .collect();
+            let commit = (parts
+                .last()
+                .expect("`parts` is always non-empty, even if the split pattern does not match")
+                .to_owned())
+            .parse::<CommitId>()
+            .ok();
             Self { item: head, commit }
         }
         .pipe(Ok)
@@ -330,10 +340,7 @@ pub mod backup {
 
     /// Restore the backed up files
     pub fn restore(files: &[FileBackup]) -> Result<()> {
-        for FileBackup {
-            filename, contents, ..
-        } in files
-        {
+        for FileBackup { filename, contents } in files {
             let path = git::ROOT.join(PathBuf::from(super::ROOT.as_str()).join(filename));
             let mut file =
                 File::create(&path).map_err(|err| anyhow!("failed to restore backup: {err}"))?;
