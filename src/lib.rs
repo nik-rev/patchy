@@ -6,7 +6,6 @@ mod cli;
 mod commands;
 mod config;
 mod git;
-mod git_high_level;
 mod github;
 mod utils;
 

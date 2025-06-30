@@ -7,10 +7,10 @@ use tap::Pipe as _;
 
 use crate::{
     config::{BranchName, CommitId, PrNumber, RepoName, RepoOwner},
-    git_high_level::{AvailableBranch, add_remote_branch, find_first_available_branch},
+    git,
     utils::{make_request, normalize_commit_msg, with_uuid},
 };
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
 
 /// Data returned by GitHub's API for the pull request endpoint per repo
 #[derive(Serialize, Deserialize, Debug)]
@@ -189,4 +189,88 @@ pub async fn fetch_pull_request(
     })?;
 
     Ok((response, remote_branch))
+}
+
+/// Available branch name to use
+pub enum AvailableBranch {
+    /// In this case, we can just use the original `branch` that we passed in
+    First,
+    /// The first branch was available, so we slapped on some arbitrary
+    /// identifier at the end Represents a branch like some-branch-2,
+    /// some-branch-3
+    Other(BranchName),
+}
+
+/// Given a branch, either return this branch or the first available branch with
+/// an identifier at the end (a `-#`) where `#` represents a number
+/// So we can keep on "trying" for a branch that isn't used. We might try
+/// `some-branch`, and if it already exists we will then try:
+///
+/// - some-branch-2
+/// - some-branch-3
+/// - some-branch-4
+/// - ...
+///
+/// Stopping when we find the first available
+///
+/// We do not want to return a branch if it already exists, since we don't want
+/// to overwrite any branch potentially losing the user their work
+///
+/// We also don't want to ask for a prompt for a custom name, as it would be
+/// pretty annoying to specify a name for each branch if you have like 30 pull
+/// requests you want to merge
+pub fn find_first_available_branch(branch: &str) -> AvailableBranch {
+    if git::does_object_exist(branch) {
+        return AvailableBranch::First;
+    }
+
+    // the first number for which the branch does not exist
+    #[expect(
+        clippy::maybe_infinite_iter,
+        reason = "there is definitely not an infinite number of branches"
+    )]
+    let number = (2..)
+        .find(|current| git::does_object_exist(&format!("{current}-{branch}")))
+        .expect("There will eventually be a #-branch which is available.");
+
+    let branch_name = BranchName::try_new(format!("{number}-{branch}"))
+        .expect("existing git branch is a valid branch name");
+
+    AvailableBranch::Other(branch_name)
+}
+
+/// Fetches a branch of a remote into local. Optionally accepts a commit hash
+/// for versioning.
+pub fn add_remote_branch(remote_branch: &RemoteBranch, commit: Option<&CommitId>) -> Result<()> {
+    git::add_remote(
+        &remote_branch.remote.local_remote_alias,
+        &remote_branch.remote.repository_url,
+    )
+    .map_err(|err| anyhow!("failed to fetch remote: {err}"))?;
+
+    if let Err(err) = git::fetch_remote_branch(
+        &remote_branch.branch.local_branch_name,
+        &remote_branch.branch.upstream_branch_name,
+        &remote_branch.remote.repository_url,
+    ) {
+        bail!(
+            "Failed to find branch {} of GitHub repository {}. Are you sure it exists?\n{err}",
+            remote_branch.branch.upstream_branch_name,
+            remote_branch.remote.repository_url
+        );
+    }
+
+    if let Some(commit) = commit {
+        git::reset_branch_to_commit(&remote_branch.branch.local_branch_name, commit).map_err(
+            |err| {
+                anyhow!(
+                    "Failed to find commit {} of branch {}. Are you sure the commit exists?\n{err}",
+                    commit.as_ref(),
+                    remote_branch.branch.local_branch_name
+                )
+            },
+        )?;
+    }
+
+    Ok(())
 }

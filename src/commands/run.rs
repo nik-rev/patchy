@@ -1,6 +1,7 @@
 //! `run` subcommand
 
-use crate::config::{self, BranchName, Config, PullRequest};
+use crate::config::{self, BranchName, Config, PrNumber, PullRequest};
+use anyhow::Result;
 use std::ffi::OsString;
 use std::fs::{self, File};
 use std::io::Write as _;
@@ -9,7 +10,6 @@ use std::path::PathBuf;
 use anyhow::{anyhow, bail};
 use colored::Colorize as _;
 
-use crate::git_high_level;
 use crate::github::{self, Branch, Remote, RemoteBranch};
 use crate::utils::{format_pr, format_url, with_uuid};
 use crate::{commands, confirm_prompt, git};
@@ -23,7 +23,7 @@ struct FileBackup {
 }
 
 /// Run patchy, if `yes` then there will be no prompt
-pub async fn run(yes: bool, use_gh_cli: bool) -> anyhow::Result<()> {
+pub async fn run(yes: bool, use_gh_cli: bool) -> Result<()> {
     let root = config::ROOT.as_str();
 
     let Ok(config_string) = fs::read_to_string(&*config::FILE_PATH) else {
@@ -114,7 +114,7 @@ pub async fn run(yes: bool, use_gh_cli: bool) -> anyhow::Result<()> {
         },
     };
 
-    git_high_level::add_remote_branch(&info, commit.as_ref())?;
+    github::add_remote_branch(&info, commit.as_ref())?;
 
     // we want to checkout the `branch` of `remote`
     let branch = &info.branch.local_branch_name;
@@ -171,12 +171,9 @@ pub async fn run(yes: bool, use_gh_cli: bool) -> anyhow::Result<()> {
             continue;
         };
 
-        if let Err(err) = git_high_level::merge_pull_request(
-            &info,
-            *pull_request,
-            &response.title,
-            &response.html_url,
-        ) {
+        if let Err(err) =
+            merge_pull_request(&info, *pull_request, &response.title, &response.html_url)
+        {
             log::error!("failed to merge {pull_request}: {err}");
             continue;
         }
@@ -201,7 +198,7 @@ pub async fn run(yes: bool, use_gh_cli: bool) -> anyhow::Result<()> {
             continue;
         };
 
-        if let Err(err) = git_high_level::merge(
+        if let Err(err) = merge(
             &info.branch.local_branch_name,
             &info.branch.upstream_branch_name,
         ) {
@@ -324,6 +321,69 @@ pub async fn run(yes: bool, use_gh_cli: bool) -> anyhow::Result<()> {
         "You can still manually overwrite {} with:\n  {overwrite_command}\n",
         config.local_branch.as_ref().cyan(),
     );
+
+    Ok(())
+}
+
+/// Create a merge commit that merges the `other_branch` into `current_branch`
+pub fn merge(
+    current_branch: &BranchName,
+    other_branch: &BranchName,
+) -> Result<String, anyhow::Error> {
+    log::trace!("Merging branch {current_branch}");
+
+    if let Err(err) = git::merge(current_branch.as_ref()) {
+        git::nuke_worktree()?;
+        bail!("failed to merge {other_branch}\n{err}");
+    }
+
+    // --squash will NOT commit anything. So we need to make the commit it manually
+    git::commit(&format!("Merge {current_branch}"))?;
+
+    Ok(format!("Merged {other_branch} successfully"))
+}
+
+/// Merge the `pull_request` into patchy's branch
+pub fn merge_pull_request(
+    info: &RemoteBranch,
+    pull_request: PrNumber,
+    pr_title: &str,
+    pr_url: &str,
+) -> Result<()> {
+    merge(
+        &info.branch.local_branch_name,
+        &info.branch.upstream_branch_name,
+    )
+    .map_err(|err| {
+        let pr = format_pr(pull_request, pr_title, pr_url);
+
+        let support_url = format_url(
+            "Merge conflicts (github)",
+            "https://github.com/nik-rev/patchy?tab=readme-ov-file#merge-conflicts",
+        )
+        .bright_blue();
+
+        anyhow!(
+            "Could not merge branch {} into the current branch for pull request {pr} since the \
+             merge is non-trivial.\nYou will need to merge it yourself:\n  {} {0}\nNote: To learn \
+             how to merge only once and re-use for subsequent invocations of patchy, see \
+             {support_url}\nSkipping this PR. Error message from git:\n{err}",
+            &info.branch.local_branch_name.as_ref().bright_cyan(),
+            "git merge --squash".bright_blue()
+        )
+    })?;
+
+    if git::is_worktree_dirty() {
+        git::commit(&format!(
+            "auto-merge pull request {}",
+            &pr_url.replace("github.com", "redirect.github.com")
+        ))?;
+    }
+
+    git::delete_remote_and_branch(
+        &info.remote.local_remote_alias,
+        &info.branch.local_branch_name,
+    )?;
 
     Ok(())
 }
