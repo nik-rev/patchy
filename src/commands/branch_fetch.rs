@@ -4,7 +4,7 @@ use colored::Colorize as _;
 
 use crate::config::{CommitId, Remote};
 use crate::git;
-use crate::github_api;
+use crate::github;
 use anyhow::anyhow;
 
 /// Fetch the given branch
@@ -12,8 +12,9 @@ pub async fn branch_fetch(
     remote: Remote,
     commit: Option<CommitId>,
     checkout: bool,
+    use_gh_cli: bool,
 ) -> anyhow::Result<()> {
-    let (_, info) = github_api::fetch_branch(&remote).await?;
+    let (_, info) = github::fetch_branch(&remote, use_gh_cli).await?;
 
     log::info!(
         "Fetched branch {}/{}/{} available at branch {}{}",

@@ -11,7 +11,7 @@ async fn main() -> ExitCode {
         .filter_level(args.verbosity.into())
         .init();
 
-    if let Err(err) = args.command.execute().await {
+    if let Err(err) = args.command.execute(args.use_gh_cli).await {
         log::error!("{err}");
         ExitCode::FAILURE
     } else {

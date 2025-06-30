@@ -7,7 +7,7 @@ mod commands;
 mod config;
 mod git;
 mod git_high_level;
-mod github_api;
+mod github;
 mod utils;
 
 pub use cli::Cli;

@@ -4,7 +4,10 @@
     reason = "GitHub API is self-explanatory"
 )]
 
+use std::process;
+
 use serde::{Deserialize, Serialize};
+use tap::Pipe as _;
 
 use crate::{
     config::{BranchName, CommitId, PrNumber},
@@ -50,23 +53,38 @@ pub struct RemoteBranch {
     pub branch: Branch,
 }
 
-/// Fetch the branch of `remote` at the given `commit`
-pub async fn fetch_branch(remote: &crate::config::Remote) -> Result<(Repo, RemoteBranch)> {
-    let url = format!(
-        "https://api.github.com/repos/{}/{}",
-        remote.owner, remote.repo
-    );
+/// Make a request to GitHub's API.
+///
+/// Either manually fetch the URL or use `gh` CLI
+async fn gh_api(url: &str, use_gh_cli: bool) -> Result<String> {
+    if use_gh_cli {
+        process::Command::new("gh")
+            .arg("api")
+            .arg(url)
+            .output()?
+            .stdout
+            .pipe(String::from_utf8)?
+            .pipe(Ok)
+    } else {
+        make_request(url).await
+    }
+}
 
-    let response = make_request(&url).await.map_err(|err| {
-        anyhow!(
-            "Could not fetch branch: {}/{}\n{err}\n",
-            remote.owner,
-            remote.repo
-        )
-    })?;
+/// Fetch the branch of `remote` at the given `commit`
+pub async fn fetch_branch(
+    remote: &crate::config::Remote,
+    use_gh_cli: bool,
+) -> Result<(Repo, RemoteBranch)> {
+    let owner = &remote.owner;
+    let repo = &remote.repo;
+    let url = format!("https://api.github.com/repos/{owner}/{repo}",);
+
+    let response = gh_api(&url, use_gh_cli)
+        .await
+        .map_err(|err| anyhow!("failed to fetch branch `{owner}/{repo}`:\n{err}\n"))?;
 
     let response: Repo = serde_json::from_str(&response).map_err(|err| {
-        anyhow!("Could not parse response.\n{response}. Could not parse because: \n{err}")
+        anyhow!("failed to parse response.\n{response}. failed to parse because: \n{err}")
     })?;
 
     let info = RemoteBranch {
@@ -98,15 +116,25 @@ pub async fn fetch_pull_request(
     pull_request: PrNumber,
     custom_branch_name: Option<BranchName>,
     commit_hash: Option<&CommitId>,
+    use_gh_cli: bool,
 ) -> Result<(GitHubResponse, RemoteBranch)> {
     let url = format!("https://api.github.com/repos/{repo}/pulls/{pull_request}");
 
-    let response = make_request(&url)
-        .await
-        .map_err(|err| anyhow!("failed to fetch pull request #{pull_request}\n{err}\n"))?;
+    let gh_response = if use_gh_cli {
+        process::Command::new("gh")
+            .arg("api")
+            .arg(url)
+            .output()?
+            .stdout
+            .pipe(String::from_utf8)?
+    } else {
+        make_request(&url)
+            .await
+            .map_err(|err| anyhow!("failed to fetch pull request #{pull_request}\n{err}\n"))?
+    };
 
-    let response: GitHubResponse = serde_json::from_str(&response).map_err(|err| {
-        anyhow!("failed to parse GitHub response.\n{response}. Could not parse because: \n{err}")
+    let response: GitHubResponse = serde_json::from_str(&gh_response).map_err(|err| {
+        anyhow!("failed to parse GitHub response.\n{gh_response}. Could not parse because: \n{err}")
     })?;
 
     let remote_branch = RemoteBranch {

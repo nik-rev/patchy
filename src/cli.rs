@@ -88,10 +88,10 @@ pub enum Command {
 
 impl Command {
     /// Execute the command
-    pub async fn execute(self) -> anyhow::Result<()> {
+    pub async fn execute(self, use_gh_cli: bool) -> anyhow::Result<()> {
         match self {
             Self::Init => commands::init()?,
-            Self::Run { yes } => commands::run(yes).await?,
+            Self::Run { yes } => commands::run(yes, use_gh_cli).await?,
             Self::GenPatch { commit, filename } => {
                 commands::gen_patch(commit, filename)?;
             }
@@ -101,12 +101,12 @@ impl Command {
                 branch,
                 commit,
                 checkout,
-            } => commands::pr_fetch(pr, remote, branch, commit, checkout).await?,
+            } => commands::pr_fetch(pr, remote, branch, commit, checkout, use_gh_cli).await?,
             Self::BranchFetch {
                 remote,
                 commit,
                 checkout,
-            } => commands::branch_fetch(remote, commit, checkout).await?,
+            } => commands::branch_fetch(remote, commit, checkout, use_gh_cli).await?,
             Self::Completions { shell } => {
                 shell.generate(&mut Cli::command(), &mut std::io::stdout());
             }

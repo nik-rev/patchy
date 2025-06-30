@@ -1,23 +1,28 @@
 //! Utilities for patchy
 
+use std::{fmt::Display, sync::LazyLock};
+
 use anyhow::anyhow;
+use colored::Colorize as _;
 use rand::{Rng as _, distributions};
-use reqwest::header::USER_AGENT;
+use reqwest::{Client, header::USER_AGENT};
+use tap::Pipe as _;
+
+use crate::config::PrNumber;
 
 /// Add a uuid identifier to the string to make it unique
 pub fn with_uuid(s: &str) -> String {
-    format!(
-        "{uuid}-{s}",
-        uuid = rand::thread_rng()
-            .sample_iter(&distributions::Alphanumeric)
-            .take(4)
-            .map(char::from)
-            .collect::<String>()
-    )
+    let uuid = rand::thread_rng()
+        .sample_iter(&distributions::Alphanumeric)
+        .take(4)
+        .map(char::from)
+        .collect::<String>();
+
+    format!("{uuid}-{s}",)
 }
 
-/// Converts a commit message to only contain lowercase characters, underscores
-/// and dashes
+/// Converts a commit message to only contain lowercase characters,
+/// underscores and dashes
 pub fn normalize_commit_msg(commit_msg: &str) -> String {
     commit_msg
         .chars()
@@ -33,25 +38,34 @@ pub fn normalize_commit_msg(commit_msg: &str) -> String {
         .collect()
 }
 
+/// Format the pull request for display in the terminal
+pub fn format_pr(pr: PrNumber, pr_title: &str, url: &str) -> String {
+    format_url(
+        format!(
+            "{}{}{}{}",
+            "#".bright_blue(),
+            pr.to_string().bright_blue(),
+            " ".bright_blue(),
+            pr_title.bright_blue().italic()
+        ),
+        url,
+    )
+}
+
 /// Style a snippet of text as a link
-pub fn display_link(text: &str, url: &str) -> String {
+pub fn format_url(text: impl Display, url: impl Display) -> String {
     format!("\u{1b}]8;;{url}\u{1b}\\{text}\u{1b}]8;;\u{1b}\\")
 }
 
 /// Send a GET request to the specified URL
+///
+/// Return the result as text
 pub async fn make_request(url: &str) -> anyhow::Result<String> {
-    let request = reqwest::Client::new()
-        .get(url)
-        .header(USER_AGENT, "{APP_NAME}")
-        .send()
-        .await;
+    static CLIENT: LazyLock<Client> = LazyLock::new(Client::new);
+    let request = CLIENT.get(url).header(USER_AGENT, "patchy").send().await;
 
     match request {
-        Ok(res) if res.status().is_success() => {
-            let out = res.text().await?;
-
-            Ok(out)
-        }
+        Ok(res) if res.status().is_success() => res.text().await?.pipe(Ok),
         Ok(res) => {
             let status = res.status();
             let text = res.text().await?;

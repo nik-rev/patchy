@@ -4,8 +4,7 @@ use anyhow::{Context as _, anyhow};
 use colored::Colorize as _;
 
 use crate::config::{BranchName, CommitId, PrNumber, Remote, RepoName, RepoOwner};
-use crate::git;
-use crate::github_api::fetch_pull_request;
+use crate::{git, github};
 
 /// Fetch the given `pr` of `remote` at `commit` and store it in local `branch`
 ///
@@ -16,6 +15,7 @@ pub async fn pr_fetch(
     branch: Option<BranchName>,
     commit: Option<CommitId>,
     checkout: bool,
+    use_gh_cli: bool,
 ) -> anyhow::Result<()> {
     pub const GITHUB_REMOTE_PREFIX: &str = "git@github.com:";
     pub const GITHUB_REMOTE_SUFFIX: &str = ".git";
@@ -46,11 +46,12 @@ pub async fn pr_fetch(
         Ok,
     )?;
 
-    let Ok((response, info)) = fetch_pull_request(
+    let Ok((response, info)) = github::fetch_pull_request(
         &format!("{}/{}", remote.owner, remote.repo),
         pr,
         branch,
         commit.as_ref(),
+        use_gh_cli,
     )
     .await
     .inspect_err(|err| {
@@ -61,16 +62,7 @@ pub async fn pr_fetch(
 
     log::info!(
         "Fetched pull request {} available at branch {}{}",
-        crate::utils::display_link(
-            &format!(
-                "{}{}{}{}",
-                "#".bright_blue(),
-                pr.to_string().bright_blue(),
-                " ".bright_blue(),
-                response.title.bright_blue().italic()
-            ),
-            &response.html_url
-        ),
+        crate::utils::format_pr(pr, &response.title, &response.html_url),
         info.branch.local_branch_name.as_ref().bright_cyan(),
         commit
             .clone()

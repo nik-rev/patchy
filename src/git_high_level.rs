@@ -10,8 +10,8 @@ use crate::git;
 use anyhow::{Result, anyhow, bail};
 use colored::Colorize as _;
 
-use crate::github_api::RemoteBranch;
-use crate::utils::display_link;
+use crate::github::RemoteBranch;
+use crate::utils::{format_pr, format_url};
 
 /// Fetches a branch of a remote into local. Optionally accepts a commit hash
 /// for versioning.
@@ -79,18 +79,9 @@ pub fn merge_pull_request(
         &info.branch.upstream_branch_name,
     )
     .map_err(|err| {
-        let pr = display_link(
-            &format!(
-                "{}{}{}{}",
-                "#".bright_blue(),
-                pull_request.to_string().bright_blue(),
-                " ".bright_blue(),
-                pr_title.bright_blue().italic()
-            ),
-            pr_url,
-        );
+        let pr = format_pr(pull_request, pr_title, pr_url);
 
-        let support_url = display_link(
+        let support_url = format_url(
             "Merge conflicts (github)",
             "https://github.com/nik-rev/patchy?tab=readme-ov-file#merge-conflicts",
         )

@@ -10,8 +10,8 @@ use anyhow::{anyhow, bail};
 use colored::Colorize as _;
 
 use crate::git_high_level;
-use crate::github_api::{self, Branch, Remote, RemoteBranch};
-use crate::utils::{display_link, with_uuid};
+use crate::github::{self, Branch, Remote, RemoteBranch};
+use crate::utils::{format_pr, format_url, with_uuid};
 use crate::{commands, confirm_prompt, git};
 
 /// Backup for a file
@@ -23,7 +23,7 @@ struct FileBackup {
 }
 
 /// Run patchy, if `yes` then there will be no prompt
-pub async fn run(yes: bool) -> anyhow::Result<()> {
+pub async fn run(yes: bool, use_gh_cli: bool) -> anyhow::Result<()> {
     let root = config::ROOT.as_str();
 
     let Ok(config_string) = fs::read_to_string(&*config::FILE_PATH) else {
@@ -140,7 +140,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
     if config.pull_requests.is_empty() && config.branches.is_empty() {
         log::warn!(
             "You haven't specified any pull requests or branches to fetch in your config, {}",
-            display_link(
+            format_url(
                 "see the instructions on how to configure patchy.",
                 "https://github.com/nik-rev/patchy?tab=readme-ov-file#config"
             )
@@ -157,13 +157,17 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
     } in &config.pull_requests
     {
         // TODO: refactor this to not use such deep nesting
-        let Ok((response, info)) =
-            github_api::fetch_pull_request(&config.repo, *pull_request, None, commit.as_ref())
-                .await
-                .inspect_err(|err| {
-                    log::error!("failed to fetch branch from remote:\n{err}");
-                })
-        else {
+        let Ok((response, info)) = github::fetch_pull_request(
+            &config.repo,
+            *pull_request,
+            None,
+            commit.as_ref(),
+            use_gh_cli,
+        )
+        .await
+        .inspect_err(|err| {
+            log::error!("failed to fetch branch from remote:\n{err}");
+        }) else {
             continue;
         };
 
@@ -179,16 +183,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
 
         log::info!(
             "Merged pull request {}",
-            display_link(
-                &format!(
-                    "{}{}{}{}",
-                    "#".bright_blue(),
-                    pull_request.to_string().bright_blue(),
-                    " ".bright_blue(),
-                    &response.title.bright_blue().italic()
-                ),
-                &response.html_url
-            ),
+            format_pr(*pull_request, &response.title, &response.html_url),
         );
     }
 
@@ -197,9 +192,12 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         let owner = &remote.owner;
         let repo = &remote.repo;
         let branch = &remote.branch;
-        let Ok((_, info)) = github_api::fetch_branch(remote).await.inspect_err(|err| {
-            log::error!("failed to fetch branch {owner}/{repo}/{branch}: {err}");
-        }) else {
+        let Ok((_, info)) = github::fetch_branch(remote, use_gh_cli)
+            .await
+            .inspect_err(|err| {
+                log::error!("failed to fetch branch {owner}/{repo}/{branch}: {err}");
+            })
+        else {
             continue;
         };
 
