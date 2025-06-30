@@ -10,12 +10,6 @@ use std::{
 
 use crate::config::{BranchName, CommitId};
 
-/// Run `git` with the given arguments, and get its output
-fn git<const N: usize>(args: [&str; N]) -> Result<String> {
-    log::trace!("$ git {}", args.join(" "));
-    get_git_output(&spawn_git(&args, &ROOT)?, &args)
-}
-
 /// Add the file
 pub fn add(file: &str) -> Result<String> {
     git(["add", file])
@@ -140,12 +134,10 @@ pub fn reset_branch_to_commit(branch: &BranchName, commit: &CommitId) -> Result<
     git(["branch", "--force", branch.as_ref(), commit.as_ref()])
 }
 
-/// Spawn a git process and collect its output
-pub fn spawn_git(args: &[&str], git_dir: &Path) -> Result<Output, io::Error> {
-    process::Command::new("git")
-        .args(args)
-        .current_dir(git_dir)
-        .output()
+/// Run `git` with the given arguments, and get its output
+fn git<const N: usize>(args: [&str; N]) -> Result<String> {
+    log::trace!("$ git {}", args.join(" "));
+    get_git_output(&spawn_git(&args, &ROOT)?, &args)
 }
 
 /// Get output of the git process
@@ -162,6 +154,14 @@ pub fn get_git_output(output: &Output, args: &[&str]) -> Result<String> {
             String::from_utf8_lossy(&output.stderr),
         ))
     }
+}
+
+/// Spawn a git process and collect its output
+pub fn spawn_git(args: &[&str], git_dir: &Path) -> Result<Output, io::Error> {
+    process::Command::new("git")
+        .args(args)
+        .current_dir(git_dir)
+        .output()
 }
 
 /// Location of the root directory of Git
