@@ -24,7 +24,7 @@ pub async fn run(yes: bool, use_gh_cli: bool) -> Result<()> {
         // We don't want to have *any* sort of prompt when using the -y flag since that
         // would be problematic in scripts
         if !yes && confirm_prompt!("Would you like us to run `patchy init` to initialize it?",) {
-            commands::init()?;
+            commands::init(false)?;
         } else if yes {
             log::info!("You can create it with `patchy init`",);
         } else {
@@ -37,7 +37,7 @@ pub async fn run(yes: bool, use_gh_cli: bool) -> Result<()> {
         return Ok(());
     };
 
-    log::trace!("Using configuration file {}", config::FILE_PATH.display());
+    log::debug!("Using configuration file {}", config::FILE_PATH.display());
 
     let config = toml::from_str::<Config>(&config_string).map_err(|err| {
         anyhow!(
@@ -278,7 +278,7 @@ pub fn merge(
     current_branch: &BranchName,
     other_branch: &BranchName,
 ) -> Result<String, anyhow::Error> {
-    log::trace!("Merging branch {current_branch}");
+    log::debug!("Merging branch {current_branch}");
 
     if let Err(err) = git::merge(current_branch.as_ref()) {
         git::nuke_worktree()?;

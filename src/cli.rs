@@ -30,7 +30,11 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 pub enum Command {
     /// Create example config file
-    Init,
+    Init {
+        /// Do not prompt when overwriting local-branch specified in the config
+        #[arg(short, long)]
+        yes: bool,
+    },
     /// Invoke patchy
     Run {
         /// Do not prompt when overwriting local-branch specified in the config
@@ -90,7 +94,7 @@ impl Command {
     /// Execute the command
     pub async fn execute(self, use_gh_cli: bool) -> anyhow::Result<()> {
         match self {
-            Self::Init => commands::init()?,
+            Self::Init { yes } => commands::init(yes)?,
             Self::Run { yes } => commands::run(yes, use_gh_cli).await?,
             Self::GenPatch { commit, filename } => {
                 commands::gen_patch(commit, filename)?;

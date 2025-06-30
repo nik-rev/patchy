@@ -89,7 +89,7 @@ pub struct RemoteBranch {
 /// - Outer `Result`: Failed to fetch the URL
 /// - Inner `Result`: Failed to deserialize text received by the URL
 async fn get_gh_api<T: DeserializeOwned>(url: &str, use_gh_cli: bool) -> Result<Result<T>> {
-    log::trace!("making a request to {url}");
+    log::debug!("making a request to {url}");
     if use_gh_cli {
         process::Command::new("gh")
             .arg("api")

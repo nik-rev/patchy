@@ -136,7 +136,7 @@ pub fn reset_branch_to_commit(branch: &BranchName, commit: &CommitId) -> Result<
 
 /// Run `git` with the given arguments, and get its output
 fn git<const N: usize>(args: [&str; N]) -> Result<String> {
-    log::trace!("$ git {}", args.join(" "));
+    log::debug!("$ git {}", args.join(" "));
     get_git_output(&spawn_git(&args, &ROOT)?, &args)
 }
 

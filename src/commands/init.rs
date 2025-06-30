@@ -9,8 +9,9 @@ use colored::Colorize as _;
 use crate::{config, confirm_prompt};
 
 /// Initialize the Patchy config file
-pub fn init() -> anyhow::Result<()> {
+pub fn init(yes: bool) -> anyhow::Result<()> {
     if config::FILE_PATH.exists()
+        && !yes
         && !confirm_prompt!(
             "File {} already exists. Overwrite it?",
             config::FILE_PATH.to_string_lossy().bright_blue(),
