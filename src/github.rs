@@ -33,7 +33,7 @@ pub struct Head {
 }
 
 impl PrData {
-    /// The endpoint which returns the structure [`GitHubResponse`]
+    /// The endpoint which returns the structure `GitHubResponse`
     fn endpoint(repo: &str, pull_request: PrNumber) -> String {
         format!("https://api.github.com/repos/{repo}/pulls/{pull_request}")
     }
