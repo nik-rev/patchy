@@ -2,10 +2,7 @@
 
 use crate::config::{self, BranchName, Config, PrNumber, PullRequest};
 use anyhow::Result;
-use std::ffi::OsString;
-use std::fs::{self, File};
-use std::io::Write as _;
-use std::path::PathBuf;
+use std::fs;
 
 use anyhow::{anyhow, bail};
 use colored::Colorize as _;
@@ -13,14 +10,6 @@ use colored::Colorize as _;
 use crate::github::{self, Branch, Remote, RemoteBranch};
 use crate::utils::{format_pr, format_url, with_uuid};
 use crate::{commands, confirm_prompt, git};
-
-/// Backup for a file
-struct FileBackup {
-    /// Name of the file to backup in `.patchy` config directory
-    filename: OsString,
-    /// Contents of the backed up file
-    contents: String,
-}
 
 /// Run patchy, if `yes` then there will be no prompt
 pub async fn run(yes: bool, use_gh_cli: bool) -> Result<()> {
@@ -72,35 +61,7 @@ pub async fn run(yes: bool, use_gh_cli: bool) -> Result<()> {
         );
     }
 
-    // --- Backup all files in the `.patchy` config directory
-
-    let config_files = fs::read_dir(&*config::PATH).map_err(|err| {
-        anyhow!(
-            "Failed to read files in directory `{}`:\n{err}",
-            &config::PATH.display()
-        )
-    })?;
-
-    let mut backed_up_files = Vec::new();
-
-    for config_file in config_files.flatten() {
-        let file_backup = fs::read_to_string(config_file.path())
-            .map_err(|err| anyhow!("{err}"))
-            .map(|contents| FileBackup {
-                filename: config_file.file_name(),
-                contents,
-            })
-            .map_err(|err| {
-                anyhow!(
-                    "failed to backup patchy config file {} for configuration files:\n{err}",
-                    config_file.file_name().display()
-                )
-            })?;
-
-        backed_up_files.push(file_backup);
-    }
-
-    // ---
+    let backed_up_files = config::backup::backup()?;
 
     let info = RemoteBranch {
         remote: Remote {
@@ -240,20 +201,7 @@ pub async fn run(yes: bool, use_gh_cli: bool) -> Result<()> {
         );
     }
 
-    // Restore all the backup files
-
-    for FileBackup {
-        filename, contents, ..
-    } in &backed_up_files
-    {
-        let path = git::ROOT.join(PathBuf::from(config::ROOT.as_str()).join(filename));
-        let mut file =
-            File::create(&path).map_err(|err| anyhow!("failed to restore backup: {err}"))?;
-
-        write!(file, "{contents}")?;
-    }
-
-    // apply patches if they exist
+    config::backup::restore(&backed_up_files)?;
 
     for patch in config.patches {
         let file_name = git::ROOT

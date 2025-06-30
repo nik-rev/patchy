@@ -306,6 +306,76 @@ macro_rules! impl_deserialize_for {
 
 impl_deserialize_for!(Remote Ref PullRequest Branch BranchName);
 
+pub mod backup {
+    //! Backup files in patchy's config directory
+
+    use crate::git;
+    use std::io::Write as _;
+
+    use super::PATH;
+    use anyhow::{Result, anyhow};
+    use std::{
+        ffi::OsString,
+        fs::{self, File},
+        path::PathBuf,
+    };
+
+    /// Backup for a single file
+    pub struct FileBackup {
+        /// Name of the file to backup in `.patchy` config directory
+        filename: OsString,
+        /// Contents of the backed up file
+        contents: String,
+    }
+
+    /// Restore the backed up files
+    pub fn restore(files: &[FileBackup]) -> Result<()> {
+        for FileBackup {
+            filename, contents, ..
+        } in files
+        {
+            let path = git::ROOT.join(PathBuf::from(super::ROOT.as_str()).join(filename));
+            let mut file =
+                File::create(&path).map_err(|err| anyhow!("failed to restore backup: {err}"))?;
+
+            write!(file, "{contents}")?;
+        }
+
+        Ok(())
+    }
+
+    /// Backup all files in patchy's config directory
+    pub fn backup() -> Result<Vec<FileBackup>> {
+        let config_files = fs::read_dir(&*PATH).map_err(|err| {
+            anyhow!(
+                "Failed to read files in directory `{}`:\n{err}",
+                &PATH.display()
+            )
+        })?;
+
+        let mut backed_up_files = Vec::new();
+
+        for config_file in config_files.flatten() {
+            let file_backup = fs::read_to_string(config_file.path())
+                .map_err(|err| anyhow!("{err}"))
+                .map(|contents| FileBackup {
+                    filename: config_file.file_name(),
+                    contents,
+                })
+                .map_err(|err| {
+                    anyhow!(
+                        "failed to backup patchy config file {} for configuration files:\n{err}",
+                        config_file.file_name().display()
+                    )
+                })?;
+
+            backed_up_files.push(file_backup);
+        }
+
+        Ok(backed_up_files)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use indexmap::indexset;
