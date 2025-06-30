@@ -1,8 +1,4 @@
 //! GitHub API
-#![allow(
-    clippy::missing_docs_in_private_items,
-    reason = "GitHub API is self-explanatory"
-)]
 
 use std::process;
 
@@ -16,21 +12,27 @@ use crate::{
 };
 use anyhow::{Result, anyhow};
 
-/// Data returned by GitHub's API
+/// Data returned by GitHub's API for the pull request endpoint per repo
 #[derive(Serialize, Deserialize, Debug)]
-pub struct GitHubResponse {
+pub struct PrData {
+    /// Data about the head repository
     pub head: Head,
+    /// Title of the pull request
     pub title: String,
+    /// Url to the pull request
     pub html_url: String,
 }
 
+/// Head repository (returned by github api)
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Head {
+    /// Repo for the PR
     pub repo: Repo,
+    /// Name of the branch of the PR
     pub r#ref: BranchName,
 }
 
-impl GitHubResponse {
+impl PrData {
     /// The endpoint which returns the structure [`GitHubResponse`]
     fn endpoint(repo: &str, pull_request: PrNumber) -> String {
         format!("https://api.github.com/repos/{repo}/pulls/{pull_request}")
@@ -51,21 +53,30 @@ impl Repo {
     }
 }
 
+/// Branch
 #[derive(Debug)]
 pub struct Branch {
+    /// Name of the branch as it is on the remote
     pub upstream_branch_name: BranchName,
+    /// Name of the branch when we want to clone it locally
     pub local_branch_name: BranchName,
 }
 
+/// Remote
 #[derive(Debug)]
 pub struct Remote {
+    /// Link to the remote repository
     pub repository_url: String,
+    /// Name of the remote as it exists locally
     pub local_remote_alias: String,
 }
 
+/// Associates a remote with a branch
 #[derive(Debug)]
 pub struct RemoteBranch {
+    /// Remote
     pub remote: Remote,
+    /// Branch
     pub branch: Branch,
 }
 
@@ -140,10 +151,10 @@ pub async fn fetch_pull_request(
     custom_branch_name: Option<BranchName>,
     commit_hash: Option<&CommitId>,
     use_gh_cli: bool,
-) -> Result<(GitHubResponse, RemoteBranch)> {
-    let url = GitHubResponse::endpoint(repo, pull_request);
+) -> Result<(PrData, RemoteBranch)> {
+    let url = PrData::endpoint(repo, pull_request);
 
-    let response = get_gh_api::<GitHubResponse>(&url, use_gh_cli)
+    let response = get_gh_api::<PrData>(&url, use_gh_cli)
         .await
         .map_err(|err| anyhow!("failed to fetch pull request #{pull_request}\n{err}\n"))??;
 
