@@ -166,15 +166,15 @@ pub fn spawn_git(args: &[&str], git_dir: &Path) -> Result<Output, io::Error> {
 
 /// Location of the root directory of Git
 pub static ROOT: LazyLock<PathBuf> = LazyLock::new(|| {
-    match (|| {
+    match env::var("PATCHY_ROOT").or_else(|_| {
         let current_dir = env::current_dir()?;
         // traverses until it finds a directory with a .git folder
         // and reports the path to the directory
         let args = ["rev-parse", "--show-toplevel"];
         let root = spawn_git(&args, &current_dir)?;
-        get_git_output(&root, &args).map(Into::into)
-    })() {
-        Ok(root) => root,
+        get_git_output(&root, &args)
+    }) {
+        Ok(root) => root.into(),
         Err(err) => {
             log::error!("Failed to determine Git root directory.\n{err}");
             process::exit(1)
