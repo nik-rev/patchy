@@ -116,10 +116,26 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
 
     git_high_level::add_remote_branch(&info, commit.as_ref())?;
 
-    let previous_branch = git_high_level::checkout_from_remote(
-        &info.branch.local_branch_name,
-        &info.remote.local_remote_alias,
-    )?;
+    // we want to checkout the `branch` of `remote`
+    let branch = &info.branch.local_branch_name;
+    let remote = &info.remote.local_remote_alias;
+
+    let previous_branch = git::get_head_commit().map_err(|err| {
+        if let Err(err) = git::delete_remote_and_branch(remote, branch) {
+            err
+        } else {
+            anyhow!(
+                "Couldn't get the current branch. This usually happens \
+            when the current branch does \
+             not have any commits.\n{err}"
+            )
+        }
+    })?;
+
+    if let Err(err) = git::checkout(branch.as_ref()) {
+        git::delete_remote_and_branch(remote, branch)?;
+        bail!("Failed to checkout branch: {branch}, which belongs to remote {remote}\n{err}");
+    }
 
     if config.pull_requests.is_empty() && config.branches.is_empty() {
         log::warn!(

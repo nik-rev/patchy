@@ -49,28 +49,6 @@ pub fn add_remote_branch(remote_branch: &RemoteBranch, commit: Option<&CommitId>
     Ok(())
 }
 
-/// Checkout `branch` of `remote`
-pub fn checkout_from_remote(branch: &BranchName, remote: &str) -> Result<String> {
-    let current_branch = git::get_head_commit().map_err(|err| {
-        if let Err(err) = git::delete_remote_and_branch(remote, branch) {
-            err
-        } else {
-            anyhow!(
-                "Couldn't get the current branch. This usually happens \
-            when the current branch does \
-             not have any commits.\n{err}"
-            )
-        }
-    })?;
-
-    if let Err(err) = git::checkout(branch.as_ref()) {
-        git::delete_remote_and_branch(remote, branch)?;
-        bail!("Failed to checkout branch: {branch}, which belongs to remote {remote}\n{err}");
-    }
-
-    Ok(current_branch)
-}
-
 /// Create a merge commit that merges the `other_branch` into `current_branch`
 pub fn merge(
     current_branch: &BranchName,
