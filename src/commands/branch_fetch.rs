@@ -3,7 +3,7 @@
 use colored::Colorize as _;
 
 use crate::config::{CommitId, Remote};
-use crate::git_high_level::git;
+use crate::git;
 use crate::github_api;
 use anyhow::anyhow;
 
@@ -27,10 +27,10 @@ pub async fn branch_fetch(
     );
 
     // Attempt to cleanup after ourselves
-    let _ = git(["remote", "remove", &info.remote.local_remote_alias]);
+    let _ = git::remove_remote(&info.remote.local_remote_alias);
 
     if checkout {
-        git(["checkout", info.branch.local_branch_name.as_ref()]).map_err(|err| {
+        git::checkout(info.branch.local_branch_name.as_ref()).map_err(|err| {
             anyhow!(
                 "failed to check out branch {}:\n{err}",
                 info.branch.local_branch_name

@@ -261,7 +261,7 @@ impl Display for PatchName {
 /// Represents a git commit hash
 #[nutype(
     validate(not_empty, predicate = is_valid_commit_hash),
-    derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef, TryFrom, FromStr)
+    derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, AsRef, TryFrom, FromStr, Display)
 )]
 pub struct CommitId(String);
 

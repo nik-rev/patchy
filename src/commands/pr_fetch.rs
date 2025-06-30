@@ -4,7 +4,7 @@ use anyhow::{Context as _, anyhow};
 use colored::Colorize as _;
 
 use crate::config::{BranchName, CommitId, PrNumber, Remote, RepoName, RepoOwner};
-use crate::git_high_level::git;
+use crate::git;
 use crate::github_api::fetch_pull_request;
 
 /// Fetch the given `pr` of `remote` at `commit` and store it in local `branch`
@@ -23,7 +23,7 @@ pub async fn pr_fetch(
     // The user hasn't provided a custom remote, so we're going to try `origin`
     let remote = remote.map_or_else(
         || -> anyhow::Result<Remote> {
-            let remote = git(["remote", "get-url", "origin"])?;
+            let remote = git::get_remote_url("origin")?;
             let err = || anyhow!("git command returned invalid remote: {remote}");
 
             if remote.starts_with(GITHUB_REMOTE_PREFIX) && remote.ends_with(GITHUB_REMOTE_SUFFIX) {
@@ -79,10 +79,10 @@ pub async fn pr_fetch(
     );
 
     // Attempt to cleanup after ourselves
-    let _ = git(["remote", "remove", &info.remote.local_remote_alias]);
+    let _ = git::remove_remote(&info.remote.local_remote_alias);
 
     if checkout {
-        if let Err(checkout_err) = git(["checkout", info.branch.local_branch_name.as_ref()]) {
+        if let Err(checkout_err) = git::checkout(info.branch.local_branch_name.as_ref()) {
             log::error!(
                 "Could not check out branch {}:\n{checkout_err}",
                 info.branch.local_branch_name

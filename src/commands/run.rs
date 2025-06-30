@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use anyhow::{anyhow, bail};
 use colored::Colorize as _;
 
-use crate::git_high_level::{self, git};
+use crate::git_high_level;
 use crate::github_api::{self, Branch, Remote, RemoteBranch};
 use crate::utils::{display_link, with_uuid};
 use crate::{
@@ -212,7 +212,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
     }
 
     if let Err(err) = fs::create_dir_all(git::ROOT.join(CONFIG_ROOT.as_str())) {
-        git(["checkout", &previous_branch])?;
+        git::checkout(&previous_branch)?;
 
         git::delete_remote_and_branch(
             &info.remote.local_remote_alias,
@@ -243,16 +243,16 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
             .join(format!("{patch}.patch"));
 
         if !file_name.exists() {
-            log::warn!("Could not find patch {patch}, skipping");
+            log::error!("failed to find patch {patch}, skipping");
             continue;
         }
 
-        if let Err(err) = git(["am", "--keep-cr", "--signoff", &file_name.to_string_lossy()]) {
-            git(["am", "--abort"])?;
-            return Err(anyhow!("Could not apply patch {patch}, skipping\n{err}"));
+        if let Err(err) = git::apply_patch(&file_name) {
+            log::error!("failed to apply patch {patch}, skipping\n{err}");
+            continue;
         }
 
-        let last_commit_message = git(["log", "-1", "--format=%B"])?;
+        let last_commit_message = git::last_commit_message()?;
 
         log::info!(
             "Applied patch {patch} {}",
@@ -265,12 +265,12 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         );
     }
 
-    git(["add", CONFIG_ROOT.as_str()])?;
+    git::add(CONFIG_ROOT.as_str())?;
     git::commit("restore configuration files")?;
 
     let temporary_branch = with_uuid("temp-branch");
 
-    git(["switch", "--create", &temporary_branch])?;
+    git::create_branch(&temporary_branch)?;
 
     git::delete_remote_and_branch(
         &info.remote.local_remote_alias,
@@ -283,16 +283,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
             config.local_branch.as_ref().cyan()
         )
     {
-        // forcefully renames the branch we are currently on into the branch specified
-        // by the user. WARNING: this is a destructive action which erases the
-        // original branch
-        git([
-            "branch",
-            "--move",
-            "--force",
-            &temporary_branch,
-            config.local_branch.as_ref(),
-        ])?;
+        git::rename_branch(&temporary_branch, config.local_branch.as_ref())?;
         if yes {
             log::info!(
                 "Automatically overwrote branch {} since you supplied the {} flag",

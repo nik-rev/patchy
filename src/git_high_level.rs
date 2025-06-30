@@ -6,7 +6,6 @@
 //!   time we want to interact with Git
 use crate::config::{BranchName, CommitId, PrNumber};
 use crate::git;
-pub use crate::git::git;
 
 use anyhow::{Result, anyhow, bail};
 use colored::Colorize as _;
@@ -17,7 +16,7 @@ use crate::utils::display_link;
 /// Fetches a branch of a remote into local. Optionally accepts a commit hash
 /// for versioning.
 pub fn add_remote_branch(remote_branch: &RemoteBranch, commit: Option<&CommitId>) -> Result<()> {
-    git::try_remote_add(
+    git::add_remote(
         &remote_branch.remote.local_remote_alias,
         &remote_branch.remote.repository_url,
     )
@@ -64,7 +63,7 @@ pub fn checkout_from_remote(branch: &BranchName, remote: &str) -> Result<String>
         }
     })?;
 
-    if let Err(err) = git(["checkout", branch.as_ref()]) {
+    if let Err(err) = git::checkout(branch.as_ref()) {
         git::delete_remote_and_branch(remote, branch)?;
         bail!("Failed to checkout branch: {branch}, which belongs to remote {remote}\n{err}");
     }
@@ -79,7 +78,7 @@ pub fn merge(
 ) -> Result<String, anyhow::Error> {
     log::trace!("Merging branch {current_branch}");
 
-    if let Err(err) = git(["merge", "--squash", current_branch.as_ref()]) {
+    if let Err(err) = git::merge(current_branch.as_ref()) {
         git::nuke_worktree()?;
         bail!("failed to merge {other_branch}\n{err}");
     }

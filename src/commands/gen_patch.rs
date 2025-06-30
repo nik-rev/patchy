@@ -5,10 +5,9 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 
-use crate::CONFIG_PATH;
 use crate::config::{CommitId, PatchName};
-use crate::git_high_level::git;
 use crate::utils::normalize_commit_msg;
+use crate::{CONFIG_PATH, git};
 
 /// Generate patch `filename` at the given `Commit`
 pub fn gen_patch(commit: CommitId, filename: Option<PatchName>) -> anyhow::Result<()> {
@@ -24,7 +23,7 @@ pub fn gen_patch(commit: CommitId, filename: Option<PatchName>) -> anyhow::Resul
     // 2. otherwise use the commit message
     // 3. if all fails use the commit hash
     let patch_filename = filename.unwrap_or_else(|| {
-        git(["log", "--format=%B", "--max-count=1", commit.as_ref()]).map_or_else(
+        git::get_message_of_commit(commit.as_ref()).map_or_else(
             |_| {
                 PatchName::try_new(commit.clone().into_inner().into()).expect("commit is not empty")
             },
@@ -43,15 +42,9 @@ pub fn gen_patch(commit: CommitId, filename: Option<PatchName>) -> anyhow::Resul
         bail!("invalid path: {patch_file_path:?}");
     };
 
-    if let Err(err) = git([
-        "format-patch",
-        "-1",
-        &commit.clone().into_inner(),
-        "--output",
-        patch_file_path_str,
-    ]) {
+    if let Err(err) = git::save_commit_as_patch(&commit, patch_file_path_str) {
         bail!(
-            "Could not get patch output for patch {}\n{err}",
+            "failed to get patch output for patch {}\n{err}",
             commit.into_inner()
         );
     }
