@@ -1,6 +1,6 @@
 //! `run` subcommand
 
-use crate::config::{BranchName, Config, PullRequest};
+use crate::config::{self, BranchName, Config, PullRequest};
 use std::ffi::OsString;
 use std::fs::{self, File};
 use std::io::Write as _;
@@ -12,9 +12,7 @@ use colored::Colorize as _;
 use crate::git_high_level;
 use crate::github_api::{self, Branch, Remote, RemoteBranch};
 use crate::utils::{display_link, with_uuid};
-use crate::{
-    CONFIG_FILE, CONFIG_FILE_PATH, CONFIG_PATH, CONFIG_ROOT, commands, confirm_prompt, git,
-};
+use crate::{commands, confirm_prompt, git};
 
 /// Backup for a file
 struct FileBackup {
@@ -26,10 +24,13 @@ struct FileBackup {
 
 /// Run patchy, if `yes` then there will be no prompt
 pub async fn run(yes: bool) -> anyhow::Result<()> {
-    let root = CONFIG_ROOT.as_str();
+    let root = config::ROOT.as_str();
 
-    let Ok(config_string) = fs::read_to_string(&*CONFIG_FILE_PATH) else {
-        log::error!("Could not find configuration file at {root}/{CONFIG_FILE}");
+    let Ok(config_string) = fs::read_to_string(&*config::FILE_PATH) else {
+        log::error!(
+            "Could not find configuration file at {root}/{}",
+            config::FILE
+        );
 
         // We don't want to have *any* sort of prompt when using the -y flag since that
         // would be problematic in scripts
@@ -47,13 +48,16 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         return Ok(());
     };
 
-    log::trace!("Using configuration file {}", CONFIG_FILE_PATH.display());
+    log::trace!("Using configuration file {}", config::FILE_PATH.display());
 
     let config = toml::from_str::<Config>(&config_string).map_err(|err| {
-        anyhow!("Could not parse `{root}/{CONFIG_FILE}` configuration file:\n{err}",)
+        anyhow!(
+            "Could not parse `{root}/{}` configuration file:\n{err}",
+            config::FILE
+        )
     })?;
 
-    let crate::config::Branch {
+    let config::Branch {
         name: remote_branch,
         commit,
     } = config.remote_branch;
@@ -70,10 +74,10 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
 
     // --- Backup all files in the `.patchy` config directory
 
-    let config_files = fs::read_dir(&*CONFIG_PATH).map_err(|err| {
+    let config_files = fs::read_dir(&*config::PATH).map_err(|err| {
         anyhow!(
             "Failed to read files in directory `{}`:\n{err}",
-            &CONFIG_PATH.display()
+            &config::PATH.display()
         )
     })?;
 
@@ -211,7 +215,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         }
     }
 
-    if let Err(err) = fs::create_dir_all(git::ROOT.join(CONFIG_ROOT.as_str())) {
+    if let Err(err) = fs::create_dir_all(git::ROOT.join(config::ROOT.as_str())) {
         git::checkout(&previous_branch)?;
 
         git::delete_remote_and_branch(
@@ -219,7 +223,10 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
             &info.branch.local_branch_name,
         )?;
 
-        bail!("Could not create directory {}\n{err}", CONFIG_ROOT.as_str());
+        bail!(
+            "Could not create directory {}\n{err}",
+            config::ROOT.as_str()
+        );
     }
 
     // Restore all the backup files
@@ -228,7 +235,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         filename, contents, ..
     } in &backed_up_files
     {
-        let path = git::ROOT.join(PathBuf::from(CONFIG_ROOT.as_str()).join(filename));
+        let path = git::ROOT.join(PathBuf::from(config::ROOT.as_str()).join(filename));
         let mut file =
             File::create(&path).map_err(|err| anyhow!("failed to restore backup: {err}"))?;
 
@@ -239,7 +246,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
 
     for patch in config.patches {
         let file_name = git::ROOT
-            .join(CONFIG_ROOT.as_str())
+            .join(config::ROOT.as_str())
             .join(format!("{patch}.patch"));
 
         if !file_name.exists() {
@@ -265,7 +272,7 @@ pub async fn run(yes: bool) -> anyhow::Result<()> {
         );
     }
 
-    git::add(CONFIG_ROOT.as_str())?;
+    git::add(config::ROOT.as_str())?;
     git::commit("restore configuration files")?;
 
     let temporary_branch = with_uuid("temp-branch");

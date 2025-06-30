@@ -5,18 +5,18 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 
-use crate::config::{CommitId, PatchName};
+use crate::config::{self, CommitId, PatchName};
+use crate::git;
 use crate::utils::normalize_commit_msg;
-use crate::{CONFIG_PATH, git};
 
 /// Generate patch `filename` at the given `Commit`
 pub fn gen_patch(commit: CommitId, filename: Option<PatchName>) -> anyhow::Result<()> {
-    if !CONFIG_PATH.exists() {
+    if !config::PATH.exists() {
         log::info!(
             "Config directory {} does not exist, creating it...",
-            CONFIG_PATH.to_string_lossy()
+            config::PATH.to_string_lossy()
         );
-        fs::create_dir_all(&*CONFIG_PATH)?;
+        fs::create_dir_all(&*config::PATH)?;
     }
 
     // 1. if the user provides a custom filename for the patch file, use that
@@ -34,7 +34,7 @@ pub fn gen_patch(commit: CommitId, filename: Option<PatchName>) -> anyhow::Resul
         )
     });
 
-    let patch_file_path = CONFIG_PATH.join(format!("{patch_filename}.patch"));
+    let patch_file_path = config::PATH.join(format!("{patch_filename}.patch"));
 
     // Paths are UTF-8 encoded. If we cannot convert to UTF-8 that means it is not a
     // valid path

@@ -3,11 +3,24 @@
 use anyhow::{anyhow, bail};
 use itertools::Itertools;
 use nutype::nutype;
-use std::{convert::Infallible, fmt::Display, path::PathBuf, str::FromStr};
+use std::{convert::Infallible, env, fmt::Display, path::PathBuf, str::FromStr, sync::LazyLock};
 use tap::Pipe as _;
 
 use indexmap::IndexSet;
 use serde::Deserialize;
+
+/// Relative path to root of patchy's configuration
+pub static ROOT: LazyLock<String> =
+    LazyLock::new(|| env::var("PATCHY_CONFIG_ROOT").unwrap_or_else(|_| ".patchy".into()));
+
+/// Absolute path to root of patchy's configuration
+pub static PATH: LazyLock<PathBuf> = LazyLock::new(|| crate::git::ROOT.join(&*ROOT));
+
+/// Absolute path to patchy's config file
+pub static FILE_PATH: LazyLock<PathBuf> = LazyLock::new(|| PATH.join(FILE));
+
+/// Patchy's config file name
+pub const FILE: &str = "config.toml";
 
 /// Represents the TOML config
 #[derive(Deserialize, Debug, Eq, PartialEq)]
