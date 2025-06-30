@@ -1,6 +1,10 @@
 # v2.0.0
 
-Breaking
+**Features**
+
+- You can now pass `--use-gh-cli` flag and it will use the [`gh`](https://github.com/cli/cli) CLI. This lets you avoid "Rate limit" errors if you authenticate.
+
+**Breaking**
 
 I've rewritten the CLI in [Clap](https://github.com/clap-rs/clap) instead of a hand-written parser.
 
@@ -8,6 +12,7 @@ This has 2 advantages:
 
 - Easier to maintain. The CLI is now declarative. Help is automatically generated. In total we went from about 3,000 lines of code (mostly tests) to just under 200 for the command-line parsing logic.
 - More intuitive. The previous CLI interface was nothing like you'd find in any other command-line app.
+- `patchy completions` subcommand generates completion for any shell
 
 And it implies that you can't do stuff like fetch more than 1 PR or Branch using patchy. I don't think people used this much. However, if you'd like to do it you can just invoke `patchy` more than once.
 

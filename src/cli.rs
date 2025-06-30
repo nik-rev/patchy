@@ -20,6 +20,11 @@ pub struct Cli {
     /// Command to invoke
     #[command(subcommand)]
     pub command: Command,
+    /// Use the `gh` CLI to interact with the GitHub API
+    ///
+    /// This is useful if you run into github's rate limiting
+    #[arg(long)]
+    pub use_gh_cli: bool,
 }
 
 #[derive(Subcommand, Debug)]
