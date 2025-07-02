@@ -6,18 +6,24 @@ use std::io::Write as _;
 use anyhow::bail;
 use colored::Colorize as _;
 
+use crate::cli::Confirm;
 use crate::{config, confirm_prompt};
 
 /// Initialize the Patchy config file
-pub fn init(yes: bool) -> anyhow::Result<()> {
-    if config::FILE_PATH.exists()
-        && !yes
-        && !confirm_prompt!(
-            "File {} already exists. Overwrite it?",
-            config::FILE_PATH.to_string_lossy().bright_blue(),
-        )
-    {
-        bail!("Did not overwrite {}", config::FILE_PATH.display());
+pub fn init(overwrite: Option<Confirm>) -> anyhow::Result<()> {
+    if config::FILE_PATH.exists() {
+        let overwrite_if_exists = match overwrite {
+            Some(Confirm::Yes) => true,
+            Some(Confirm::No) => false,
+            None => confirm_prompt!(
+                "File {} already exists. Overwrite it?",
+                config::FILE_PATH.to_string_lossy().bright_blue(),
+            ),
+        };
+
+        if !overwrite_if_exists {
+            bail!("Did not overwrite {}", config::FILE_PATH.display());
+        }
     }
 
     fs::create_dir_all(&*config::PATH)?;

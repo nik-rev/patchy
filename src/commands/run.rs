@@ -1,5 +1,6 @@
 //! `run` subcommand
 
+use crate::cli::Confirm;
 use crate::config::{self, BranchName, Config, PrNumber, PullRequest};
 use anyhow::Result;
 use std::fs;
@@ -12,7 +13,7 @@ use crate::utils::{format_pr, format_url, with_uuid};
 use crate::{commands, confirm_prompt, git};
 
 /// Run patchy, if `yes` then there will be no prompt
-pub async fn run(yes: bool, use_gh_cli: bool) -> Result<()> {
+pub async fn run(confirm: Option<Confirm>, use_gh_cli: bool) -> Result<()> {
     let root = config::ROOT.as_str();
 
     let Ok(config_string) = fs::read_to_string(&*config::FILE_PATH) else {
@@ -21,14 +22,16 @@ pub async fn run(yes: bool, use_gh_cli: bool) -> Result<()> {
             config::FILE
         );
 
-        // We don't want to have *any* sort of prompt when using the -y flag since that
-        // would be problematic in scripts
-        if !yes && confirm_prompt!("Would you like us to run `patchy init` to initialize it?",) {
-            commands::init(false)?;
-        } else if yes {
-            log::info!("You can create it with `patchy init`",);
+        let init_file = match confirm {
+            Some(Confirm::Yes) => true,
+            Some(Confirm::No) => false,
+            None => confirm_prompt!("Would you like us to run `patchy init` to initialize it?",),
+        };
+
+        if init_file {
+            commands::init(Some(Confirm::Yes))?;
         } else {
-            // user said "no" in the prompt, so we don't do any initializing
+            log::info!("You can create it with `patchy init`",);
         }
 
         // We don't want to read the default configuration file as config_string. Since
@@ -243,20 +246,17 @@ pub async fn run(yes: bool, use_gh_cli: bool) -> Result<()> {
         &info.branch.local_branch_name,
     )?;
 
-    if yes
-        || confirm_prompt!(
+    let overwrite_branch = match confirm {
+        Some(Confirm::Yes) => true,
+        Some(Confirm::No) => false,
+        None => confirm_prompt!(
             "Overwrite branch {}? This is irreversible.",
             config.local_branch.as_ref().cyan()
-        )
-    {
+        ),
+    };
+
+    if overwrite_branch {
         git::rename_branch(&temporary_branch, config.local_branch.as_ref())?;
-        if yes {
-            log::info!(
-                "Automatically overwrote branch {} since you supplied the {} flag",
-                config.local_branch.as_ref().cyan(),
-                "--yes".bright_magenta()
-            );
-        }
         log::info!("Success!");
         return Ok(());
     }

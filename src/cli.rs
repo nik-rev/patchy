@@ -1,7 +1,7 @@
 //! Parse the command-line arguments
 
 use clap::{
-    CommandFactory as _, Parser, Subcommand,
+    CommandFactory as _, Parser, Subcommand, ValueEnum,
     builder::styling::{AnsiColor, Effects},
 };
 
@@ -27,19 +27,28 @@ pub struct Cli {
     pub use_gh_cli: bool,
 }
 
+/// Overwrite existing patchy config file if it exists
+#[derive(ValueEnum, Clone, Debug, Copy)]
+pub enum Confirm {
+    /// Overwrite
+    Yes,
+    /// Do not overwrite
+    No,
+}
+
 #[derive(Subcommand, Debug)]
 pub enum Command {
     /// Create example config file
     Init {
-        /// Do not prompt when overwriting local-branch specified in the config
+        /// Do not ask for confirmation when overwriting existing config file
         #[arg(short, long)]
-        yes: bool,
+        confirm: Option<Confirm>,
     },
     /// Invoke patchy
     Run {
-        /// Do not prompt when overwriting local-branch specified in the config
+        /// Do not ask for confirmation when overwriting the specified branch
         #[arg(short, long)]
-        yes: bool,
+        confirm: Option<Confirm>,
     },
     /// Generate a .patch file from a commit hash
     GenPatch {
@@ -94,8 +103,10 @@ impl Command {
     /// Execute the command
     pub async fn execute(self, use_gh_cli: bool) -> anyhow::Result<()> {
         match self {
-            Self::Init { yes } => commands::init(yes)?,
-            Self::Run { yes } => commands::run(yes, use_gh_cli).await?,
+            Self::Init {
+                confirm: overwrite_file_if_exists,
+            } => commands::init(overwrite_file_if_exists)?,
+            Self::Run { confirm } => commands::run(confirm, use_gh_cli).await?,
             Self::GenPatch { commit, filename } => {
                 commands::gen_patch(commit, filename)?;
             }
